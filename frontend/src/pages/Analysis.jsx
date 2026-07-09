@@ -64,20 +64,20 @@ function Analysis() {
     if (mse < 100) {
       return {
         status: "good",
-        text: "Perubahan citra HE Image sangat kecil sehingga kualitas visual hasil akhir masih sangat mendekati citra asli."
+        text: "Perubahan citra Grayscale Image sangat kecil sehingga kualitas visual hasil akhir masih sangat mendekati citra asli."
       };
     }
 
     if (mse < 1000) {
       return {
         status: "moderate",
-        text: "Perubahan citra HE Image berada pada tingkat sedang dan masih dapat diterima untuk proses peningkatan kualitas citra."
+        text: "Perubahan citra Grayscale Image berada pada tingkat sedang dan masih dapat diterima untuk proses peningkatan kualitas citra."
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan citra HE Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel."
+      text: "Perubahan citra Grayscale Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel."
     };
 
   };
@@ -88,20 +88,20 @@ const getPSNRDescription =
     if (psnr > 40) {
       return {
         status: "good",
-        text: "Kualitas HE Image sangat baik dengan tingkat distorsi yang sangat rendah."
+        text: "Kualitas Grayscale Image sangat baik dengan tingkat distorsi yang sangat rendah."
       };
     }
 
     if (psnr >= 30) {
       return {
         status: "moderate",
-        text: "Kualitas HE Image masih baik dan detail objek tetap dapat dipertahankan."
+        text: "Kualitas Grayscale Image masih baik dan detail objek tetap dapat dipertahankan."
       };
     }
 
     return {
       status: "poor",
-      text: "Terjadi penurunan kualitas HE Image akibat perubahan intensitas piksel yang cukup signifikan."
+      text: "Terjadi penurunan kualitas Grayscale Image akibat perubahan intensitas piksel yang cukup signifikan."
     };
 
   };
@@ -112,20 +112,20 @@ const getSSIMDescription =
     if (ssim > 0.90) {
       return {
         status: "good",
-        text: "Struktur HE Image sangat mirip dengan citra asli."
+        text: "Struktur Grayscale Image sangat mirip dengan citra asli."
       };
     }
 
     if (ssim >= 0.75) {
       return {
         status: "moderate",
-        text: "Struktur HE Image masih cukup terjaga meskipun terjadi perubahan kontras."
+        text: "Struktur Grayscale Image masih cukup terjaga meskipun terjadi perubahan kontras."
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan struktur HE Image mulai terlihat akibat proses peningkatan kualitas citra."
+      text: "Perubahan struktur Grayscale Image mulai terlihat akibat proses peningkatan kualitas citra."
     };
 
   };
@@ -223,7 +223,7 @@ const getConclusionDescription =
     ) {
       return {
         status: "good",
-        text: "Berdasarkan hasil akhir HE Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa Histogram Equalization berhasil meningkatkan kontras citra tanpa mengubah struktur utama objek secara signifikan. Peningkatan nilai Standard Deviation menunjukkan distribusi intensitas piksel HE Image menjadi lebih merata sehingga objek pada citra lebih mudah diamati."
+        text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa Histogram Equalization berhasil meningkatkan kontras citra tanpa mengubah struktur utama objek secara signifikan. Peningkatan nilai Standard Deviation menunjukkan distribusi intensitas piksel Grayscale Image menjadi lebih merata sehingga objek pada citra lebih mudah diamati."
       };
     }
 
@@ -233,13 +233,13 @@ const getConclusionDescription =
     ) {
       return {
         status: "moderate",
-        text: "Berdasarkan hasil akhir HE Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa proses Histogram Equalization mampu memperbaiki kontras, namun perubahan intensitas piksel masih perlu diperhatikan karena berpengaruh terhadap kualitas visual HE Image."
+        text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa proses Histogram Equalization mampu memperbaiki kontras, namun perubahan intensitas piksel masih perlu diperhatikan karena berpengaruh terhadap kualitas visual Grayscale Image."
       };
     }
 
     return {
       status: "poor",
-      text: "Berdasarkan hasil akhir HE Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa hasil Histogram Equalization belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti dengan kestabilan struktur citra yang memadai."
+      text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa hasil Histogram Equalization belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti dengan kestabilan struktur citra yang memadai."
     };
 
   };
@@ -477,6 +477,11 @@ const renderMetricSummary =
     imageVersion,
     setImageVersion
   ] = useState(0);
+
+  const [
+    downloadingVideoTarget,
+    setDownloadingVideoTarget
+  ] = useState("");
 
   const videoRef =
     useRef(null);
@@ -836,6 +841,194 @@ const renderMetricSummary =
 
         window.alert(
           "Gagal mengunduh gambar"
+        );
+
+      }
+
+    };
+
+  const handleDownloadVideo =
+    async (
+      canvasRef,
+      prefix
+    ) => {
+
+      const video =
+        videoRef.current;
+
+      const canvas =
+        canvasRef.current;
+
+      if (
+        !video ||
+        !canvas ||
+        !canvas.captureStream ||
+        typeof MediaRecorder === "undefined"
+      ) {
+        window.alert(
+          "Browser tidak mendukung download video dari canvas"
+        );
+        return;
+      }
+
+      if (
+        !canvas.width ||
+        !canvas.height
+      ) {
+        analyzeVideoFrame();
+      }
+
+      try {
+
+        setDownloadingVideoTarget(
+          prefix
+        );
+
+        if (
+          Number.isFinite(
+            video.duration
+          )
+        ) {
+          video.pause();
+          video.currentTime = 0;
+        }
+
+        analyzeVideoFrame();
+
+        const stream =
+          canvas.captureStream(
+            30
+          );
+
+        const mimeType =
+          MediaRecorder.isTypeSupported(
+            "video/webm;codecs=vp9"
+          )
+            ? "video/webm;codecs=vp9"
+            : "video/webm";
+
+        const recorder =
+          new MediaRecorder(
+            stream,
+            {
+              mimeType
+            }
+          );
+
+        const chunks =
+          [];
+
+        recorder.ondataavailable =
+          event => {
+
+            if (
+              event.data &&
+              event.data.size > 0
+            ) {
+              chunks.push(
+                event.data
+              );
+            }
+
+          };
+
+        recorder.onstop =
+          () => {
+
+            stream.getTracks()
+              .forEach(
+                track =>
+                  track.stop()
+              );
+
+            const blob =
+              new Blob(
+                chunks,
+                {
+                  type:
+                    "video/webm"
+                }
+              );
+
+            const objectUrl =
+              URL.createObjectURL(
+                blob
+              );
+
+            const link =
+              document.createElement(
+                "a"
+              );
+
+            link.href =
+              objectUrl;
+
+            link.download =
+              getDownloadFileName(
+                prefix,
+                selectedCapture,
+                "video.webm"
+              );
+
+            document.body.appendChild(
+              link
+            );
+
+            link.click();
+            link.remove();
+
+            URL.revokeObjectURL(
+              objectUrl
+            );
+
+            setDownloadingVideoTarget(
+              ""
+            );
+
+          };
+
+        const stopRecording =
+          () => {
+
+            if (
+              recorder.state !==
+              "inactive"
+            ) {
+              recorder.stop();
+            }
+
+            video.removeEventListener(
+              "ended",
+              stopRecording
+            );
+
+          };
+
+        video.addEventListener(
+          "ended",
+          stopRecording,
+          {
+            once:
+              true
+          }
+        );
+
+        recorder.start();
+
+        await video.play();
+
+      } catch (error) {
+
+        console.log(
+          error
+        );
+
+        setDownloadingVideoTarget(
+          ""
+        );
+
+        window.alert(
+          "Gagal mengunduh video"
         );
 
       }
@@ -1729,13 +1922,55 @@ const renderMetricSummary =
                   selectedCapture.mediaType ===
                   "video" ? (
 
-                    <canvas
-                      ref={enhancedCanvasRef}
-                      className="
-                      w-full
-                      rounded
-                      "
-                    />
+                    <>
+                      <canvas
+                        ref={enhancedCanvasRef}
+                        className="
+                        w-full
+                        rounded
+                        "
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownloadVideo(
+                            enhancedCanvasRef,
+                            "enhanced-video"
+                          )
+                        }
+                        disabled={Boolean(
+                          downloadingVideoTarget
+                        )}
+                        className="
+                        mt-4
+                        flex
+                        w-full
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-teal-200
+                        bg-teal-50
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-teal-700
+                        transition
+                        hover:bg-teal-100
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                        "
+                      >
+                        {
+                          downloadingVideoTarget ===
+                          "enhanced-video"
+                            ? "Merekam Enhanced Video..."
+                            : "Download Enhanced Video"
+                        }
+                      </button>
+                    </>
 
                   ) : (
 
@@ -1799,20 +2034,62 @@ const renderMetricSummary =
               <div className="bg-white p-5 rounded-2xl shadow-lg border">
 
                 <h3 className="font-bold mb-3">
-                  HE Image
+                  Grayscale Image
                 </h3>
 
                 {
                   selectedCapture.mediaType ===
                   "video" ? (
 
-                    <canvas
-                      ref={heCanvasRef}
-                      className="
-                      w-full
-                      rounded
-                      "
-                    />
+                    <>
+                      <canvas
+                        ref={heCanvasRef}
+                        className="
+                        w-full
+                        rounded
+                        "
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownloadVideo(
+                            heCanvasRef,
+                            "grayscale-video"
+                          )
+                        }
+                        disabled={Boolean(
+                          downloadingVideoTarget
+                        )}
+                        className="
+                        mt-4
+                        flex
+                        w-full
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-teal-200
+                        bg-teal-50
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-teal-700
+                        transition
+                        hover:bg-teal-100
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                        "
+                      >
+                        {
+                          downloadingVideoTarget ===
+                          "grayscale-video"
+                            ? "Merekam Grayscale Video..."
+                            : "Download Grayscale Video"
+                        }
+                      </button>
+                    </>
 
                   ) : (
 
@@ -1857,14 +2134,14 @@ const renderMetricSummary =
                           hover:bg-teal-100
                           "
                         >
-                          Download HE Image
+                          Download Grayscale Image
                         </button>
                       </>
 
                     ) : (
 
                       <div className="text-gray-500">
-                        No HE Image
+                        No Grayscale Image
                       </div>
 
                     )
@@ -1910,7 +2187,7 @@ const renderMetricSummary =
                     "
                   >
                     <h3 className="font-bold mb-3">
-                      Metrik Hasil HE Image
+                      Metrik Hasil Grayscale Image
                     </h3>
                     {renderMetricSummary(getHeMetrics(metrics))}
                   </div>
@@ -2162,7 +2439,7 @@ const renderMetricSummary =
 
                   </div>
 
-                  {/* HE */}
+                  {/* Grayscale */}
 
                   <div
                     className="
@@ -2180,7 +2457,7 @@ const renderMetricSummary =
                       mb-2
                       "
                     >
-                      HE Histogram
+                      Grayscale Histogram
                     </h3>
 
                     <p
@@ -2401,7 +2678,7 @@ const renderMetricSummary =
                         mb-2
                         "
                       >
-                        HE Histogram
+                        Grayscale Histogram
                       </h3>
 
                       <p
