@@ -64,20 +64,20 @@ function Analysis() {
     if (mse < 100) {
       return {
         status: "good",
-        text: "Perubahan citra Grayscale Image sangat kecil sehingga kualitas visual hasil akhir masih sangat mendekati citra asli."
+        text: "Perubahan antara citra asli dan Enhanced Image sangat kecil, sehingga hasil enhancement masih sangat mendekati citra asli."
       };
     }
 
     if (mse < 1000) {
       return {
         status: "moderate",
-        text: "Perubahan citra Grayscale Image berada pada tingkat sedang dan masih dapat diterima untuk proses peningkatan kualitas citra."
+        text: "Perubahan antara citra asli dan Enhanced Image berada pada tingkat sedang dan masih dapat diterima dalam proses peningkatan kualitas citra."
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan citra Grayscale Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel."
+      text: "Perubahan antara citra asli dan Enhanced Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel."
     };
 
   };
@@ -88,20 +88,20 @@ const getPSNRDescription =
     if (psnr > 40) {
       return {
         status: "good",
-        text: "Kualitas Grayscale Image sangat baik dengan tingkat distorsi yang sangat rendah."
+        text: "Kualitas Enhanced Image sangat baik dengan tingkat distorsi yang sangat rendah dibandingkan citra asli."
       };
     }
 
     if (psnr >= 30) {
       return {
         status: "moderate",
-        text: "Kualitas Grayscale Image masih baik dan detail objek tetap dapat dipertahankan."
+        text: "Kualitas Enhanced Image masih baik dan detail objek tetap dapat dipertahankan dibandingkan citra asli."
       };
     }
 
     return {
       status: "poor",
-      text: "Terjadi penurunan kualitas Grayscale Image akibat perubahan intensitas piksel yang cukup signifikan."
+      text: "Enhanced Image mengalami perubahan intensitas piksel yang cukup signifikan dibandingkan citra asli."
     };
 
   };
@@ -112,20 +112,20 @@ const getSSIMDescription =
     if (ssim > 0.90) {
       return {
         status: "good",
-        text: "Struktur Grayscale Image sangat mirip dengan citra asli."
+        text: "Struktur Enhanced Image sangat mirip dengan citra asli."
       };
     }
 
     if (ssim >= 0.75) {
       return {
         status: "moderate",
-        text: "Struktur Grayscale Image masih cukup terjaga meskipun terjadi perubahan kontras."
+        text: "Struktur Enhanced Image masih cukup terjaga meskipun terjadi perubahan kontras."
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan struktur Grayscale Image mulai terlihat akibat proses peningkatan kualitas citra."
+      text: "Perubahan struktur Enhanced Image mulai terlihat akibat proses enhancement."
     };
 
   };
@@ -136,47 +136,33 @@ const getStdDevDescription =
     const original =
       Number(values.original);
 
-    const he =
-      Number(values.he);
-
     const enhanced =
       Number(values.enhanced);
 
     const almostSameThreshold =
       5;
 
-    const allAlmostSame =
-      Math.abs(he - original) <=
-        almostSameThreshold &&
-      Math.abs(enhanced - he) <=
-        almostSameThreshold &&
+    const almostSame =
       Math.abs(enhanced - original) <=
         almostSameThreshold;
 
-    if (allAlmostSame) {
+    if (almostSame) {
       return {
         status: "moderate",
-        text: "Peningkatan kontras citra relatif kecil karena distribusi intensitas citra awal sudah cukup baik."
+        text: "Penyebaran intensitas pada Enhanced Image relatif sama dengan citra asli, sehingga peningkatan kontrasnya kecil."
       };
     }
 
-    if (enhanced > he) {
+    if (enhanced > original) {
       return {
         status: "good",
-        text: "Histogram Equalization berhasil meningkatkan penyebaran intensitas piksel sehingga kontras citra meningkat. Tahap Image Enhancement memberikan peningkatan kontras tambahan dibandingkan hasil Histogram Equalization."
-      };
-    }
-
-    if (he > original) {
-      return {
-        status: "good",
-        text: "Histogram Equalization berhasil meningkatkan penyebaran intensitas piksel sehingga kontras citra meningkat."
+        text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih besar daripada citra asli, sehingga kontras citra meningkat."
       };
     }
 
     return {
       status: "poor",
-      text: "Peningkatan kontras citra belum menunjukkan kenaikan penyebaran intensitas piksel yang signifikan."
+      text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih rendah daripada citra asli; peningkatan kontras belum terlihat dari nilai Standard Deviation."
     };
 
   };
@@ -199,14 +185,10 @@ const getConclusionDescription =
     const original =
       Number(stdDevValues.original);
 
-    const he =
-      Number(stdDevValues.he);
-
     const enhanced =
       Number(stdDevValues.enhanced);
 
     const contrastImproved =
-      he > original ||
       enhanced > original;
 
     const structurePreserved =
@@ -223,7 +205,7 @@ const getConclusionDescription =
     ) {
       return {
         status: "good",
-        text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa Histogram Equalization berhasil meningkatkan kontras citra tanpa mengubah struktur utama objek secara signifikan. Peningkatan nilai Standard Deviation menunjukkan distribusi intensitas piksel Grayscale Image menjadi lebih merata sehingga objek pada citra lebih mudah diamati."
+        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa enhancement meningkatkan kontras tanpa mengubah struktur utama objek secara signifikan. Peningkatan Standard Deviation menunjukkan distribusi intensitas piksel Enhanced Image lebih menyebar sehingga objek lebih mudah diamati."
       };
     }
 
@@ -233,13 +215,13 @@ const getConclusionDescription =
     ) {
       return {
         status: "moderate",
-        text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa proses Histogram Equalization mampu memperbaiki kontras, namun perubahan intensitas piksel masih perlu diperhatikan karena berpengaruh terhadap kualitas visual Grayscale Image."
+        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, enhancement mampu memperbaiki kontras dan struktur objek masih terjaga, tetapi perubahan intensitas piksel tetap perlu diperhatikan karena dapat memengaruhi kualitas visual."
       };
     }
 
     return {
       status: "poor",
-      text: "Berdasarkan hasil akhir Grayscale Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa hasil Histogram Equalization belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti dengan kestabilan struktur citra yang memadai."
+      text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, hasil enhancement belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti kestabilan struktur citra yang memadai."
     };
 
   };
@@ -402,7 +384,6 @@ const getHeMetrics =
 
 const getFinalMetrics =
   metricValues =>
-    getHeMetrics(metricValues) ||
     getEnhancedMetrics(metricValues);
 
 const renderMetricSummary =
