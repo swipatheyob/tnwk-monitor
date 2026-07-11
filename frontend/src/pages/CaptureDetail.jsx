@@ -1,92 +1,47 @@
-import {
-  useEffect,
-  useState
-} from "react";
+import {useEffect, useState} from "react";
 
-import {
-  Link,
-  useParams
-} from "react-router-dom";
+import {Link, useParams} from "react-router-dom";
 
-import MainLayout
-  from "../layouts/MainLayout";
+import MainLayout from "../layouts/MainLayout";
 
-import {
-  getCaptureById
-} from "../services/captureService";
+import {getCaptureById} from "../services/captureService";
 
-import {
-  getCaptureDate,
-  getDeviceDisplayName
-} from "../utils/captureHelper";
+import {getCaptureDate, getDeviceDisplayName} from "../utils/captureHelper";
+import {BACKEND_BASE_URL} from "../config/apiConfig";
 
 function CaptureDetail() {
+  const {id} = useParams();
 
-  const {
-    id
-  } = useParams();
+  const [capture, setCapture] = useState(null);
 
-  const [
-    capture,
-    setCapture
-  ] = useState(null);
-
-  const [
-    error,
-    setError
-  ] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    const loadCapture = async () => {
+      try {
+        const data = await getCaptureById(id);
 
-    const loadCapture =
-      async () => {
+        setCapture(data);
+      } catch (requestError) {
+        console.log(requestError);
 
-        try {
-
-          const data =
-            await getCaptureById(
-              id
-            );
-
-          setCapture(
-            data
-          );
-
-        } catch (requestError) {
-
-          console.log(
-            requestError
-          );
-
-          setError(
-            "Capture tidak ditemukan"
-          );
-
-        }
-
-      };
+        setError("Capture tidak ditemukan");
+      }
+    };
 
     loadCapture();
-
   }, [id]);
 
-  const isEsp32Cam =
-    capture?.source ===
-    "esp32cam";
+  const isEsp32Cam = capture?.source === "esp32cam";
 
-  const isVideo =
-    capture?.mediaType ===
-    "video";
+  const isVideo = capture?.mediaType === "video";
 
-  const mediaUrl =
-    capture
-      ? `http://localhost:5000/uploads/original/${capture.originalImage}`
-      : "";
+  const mediaUrl = capture
+    ? `${BACKEND_BASE_URL}/uploads/original/${capture.originalImage}`
+    : "";
 
   return (
-
     <MainLayout>
-
       {/* BACK BUTTON */}
 
       <Link
@@ -108,45 +63,34 @@ function CaptureDetail() {
         ← Back to Gallery
       </Link>
 
-      {
-        error ? (
-
-          <div
-            className="
+      {error ? (
+        <div
+          className="
             bg-red-100
             text-red-700
             p-4
             rounded-xl
             "
-          >
-            {error}
-          </div>
-
-        ) : capture && (
-
+        >
+          {error}
+        </div>
+      ) : (
+        capture && (
           <div
             className="
             space-y-6
             "
           >
-
             {/* HEADER */}
 
             <div>
+              <span className="page-kicker">Media Intelligence Viewer</span>
 
-              <span className="page-kicker">
-                Media Intelligence Viewer
-              </span>
-
-              <h1 className="page-title">
-                Capture Detail
-              </h1>
+              <h1 className="page-title">Capture Detail</h1>
 
               <p className="page-description">
-                Detail hasil tangkapan media
-                perangkat monitoring satwa.
+                Detail hasil tangkapan media perangkat monitoring satwa.
               </p>
-
             </div>
 
             {/* MEDIA */}
@@ -160,53 +104,30 @@ function CaptureDetail() {
               overflow-hidden
               "
             >
-
-              {
-                isVideo ? (
-
-                  <video
-                    controls
-                    className="
+              {isVideo ? (
+                <video
+                  controls
+                  className="
                     w-full
                     max-h-[75vh]
                     bg-black
                     "
-                  >
-
-                    <source
-                      src={
-                        mediaUrl
-                      }
-                      type="video/mp4"
-                    />
-
-                    Browser Anda tidak
-                    mendukung video.
-
-                  </video>
-
-                ) : (
-
-                  <img
-                    src={
-                      mediaUrl
-                    }
-                    alt={
-                      getDeviceDisplayName(
-                        capture
-                      )
-                    }
-                    className="
+                >
+                  <source src={mediaUrl} type="video/mp4" />
+                  Browser Anda tidak mendukung video.
+                </video>
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt={getDeviceDisplayName(capture)}
+                  className="
                     w-full
                     max-h-[75vh]
                     object-contain
                     bg-black
                     "
-                  />
-
-                )
-              }
-
+                />
+              )}
             </div>
 
             {/* INFO */}
@@ -220,7 +141,6 @@ function CaptureDetail() {
               p-6
               "
             >
-
               <div
                 className="
                 flex
@@ -230,9 +150,7 @@ function CaptureDetail() {
                 gap-4
                 "
               >
-
                 <div>
-
                   <h2
                     className="
                     text-2xl
@@ -240,11 +158,7 @@ function CaptureDetail() {
                     text-slate-800
                     "
                   >
-                    {
-                      getDeviceDisplayName(
-                        capture
-                      )
-                    }
+                    {getDeviceDisplayName(capture)}
                   </h2>
 
                   <p
@@ -253,11 +167,8 @@ function CaptureDetail() {
                     mt-2
                     "
                   >
-                    Capture ID:
-                    {" "}
-                    {capture._id}
+                    Capture ID: {capture._id}
                   </p>
-
                 </div>
 
                 <span
@@ -276,15 +187,8 @@ function CaptureDetail() {
                   }
                   `}
                 >
-
-                  {
-                    isEsp32Cam
-                      ? "ESP32-CAM"
-                      : "WEBCAM"
-                  }
-
+                  {isEsp32Cam ? "ESP32-CAM" : "WEBCAM"}
                 </span>
-
               </div>
 
               <div
@@ -296,7 +200,6 @@ function CaptureDetail() {
                 gap-5
                 "
               >
-
                 <div
                   className="
                   bg-slate-50
@@ -304,7 +207,6 @@ function CaptureDetail() {
                   p-4
                   "
                 >
-
                   <p
                     className="
                     text-sm
@@ -320,13 +222,8 @@ function CaptureDetail() {
                     mt-1
                     "
                   >
-                    {
-                      getCaptureDate(
-                        capture
-                      )
-                    }
+                    {getCaptureDate(capture)}
                   </h3>
-
                 </div>
 
                 <div
@@ -336,7 +233,6 @@ function CaptureDetail() {
                   p-4
                   "
                 >
-
                   <p
                     className="
                     text-sm
@@ -352,13 +248,8 @@ function CaptureDetail() {
                     mt-1
                     "
                   >
-                    {
-                      isEsp32Cam
-                        ? "ESP32-CAM"
-                        : "Webcam Simulator"
-                    }
+                    {isEsp32Cam ? "ESP32-CAM" : "Webcam Simulator"}
                   </h3>
-
                 </div>
 
                 <div
@@ -368,7 +259,6 @@ function CaptureDetail() {
                   p-4
                   "
                 >
-
                   <p
                     className="
                     text-sm
@@ -384,28 +274,16 @@ function CaptureDetail() {
                     mt-1
                     "
                   >
-                    {
-                      isVideo
-                        ? "Video"
-                        : "Image"
-                    }
+                    {isVideo ? "Video" : "Image"}
                   </h3>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         )
-      }
-
+      )}
     </MainLayout>
-
   );
-
 }
 
 export default CaptureDetail;

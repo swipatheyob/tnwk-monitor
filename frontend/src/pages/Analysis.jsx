@@ -1,25 +1,15 @@
-import {
-  useEffect,
-  useState,
-  useRef
-} from "react";
+import {useEffect, useState, useRef} from "react";
 
-import MainLayout
-  from "../layouts/MainLayout";
+import MainLayout from "../layouts/MainLayout";
 
-import {
-  getCaptures
-} from "../services/captureService";
+import {getCaptures} from "../services/captureService";
 
-import {
-  getCaptureDate,
-  getDeviceDisplayName
-} from "../utils/captureHelper";
+import {getCaptureDate, getDeviceDisplayName} from "../utils/captureHelper";
 
 import {
   processHistogram,
   getMetrics,
-  getHistogramData
+  getHistogramData,
 } from "../services/analysisService";
 
 import {
@@ -28,207 +18,150 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
+import {BACKEND_BASE_URL} from "../config/apiConfig";
 
 function Analysis() {
+  const [captures, setCaptures] = useState([]);
 
-  const [
-    captures,
-    setCaptures
-  ] = useState([]);
+  const [selectedCapture, setSelectedCapture] = useState(null);
 
-  const [
-    selectedCapture,
-    setSelectedCapture
-  ] = useState(null);
+  const [selectedDeviceFilter, setSelectedDeviceFilter] = useState("");
 
+  const [selectedDateFilter, setSelectedDateFilter] = useState("");
+  const [metrics, setMetrics] = useState(null);
 
-  const [
-    selectedDeviceFilter,
-    setSelectedDeviceFilter
-  ] = useState("");
-
-  const [
-    selectedDateFilter,
-    setSelectedDateFilter
-  ] = useState("");
-  const [
-    metrics,
-    setMetrics
-  ] = useState(null);
-
-  const getMSEDescription =
-  mse => {
-
+  const getMSEDescription = (mse) => {
     if (mse < 100) {
       return {
         status: "good",
-        text: "Perubahan antara citra asli dan Enhanced Image sangat kecil, sehingga hasil enhancement masih sangat mendekati citra asli."
+        text: "Perubahan antara citra asli dan Enhanced Image sangat kecil, sehingga hasil enhancement masih sangat mendekati citra asli.",
       };
     }
 
     if (mse < 1000) {
       return {
         status: "moderate",
-        text: "Perubahan antara citra asli dan Enhanced Image berada pada tingkat sedang dan masih dapat diterima dalam proses peningkatan kualitas citra."
+        text: "Perubahan antara citra asli dan Enhanced Image berada pada tingkat sedang dan masih dapat diterima dalam proses peningkatan kualitas citra.",
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan antara citra asli dan Enhanced Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel."
+      text: "Perubahan antara citra asli dan Enhanced Image cukup besar akibat proses peningkatan kontras dan distribusi intensitas piksel.",
     };
-
   };
 
-const getPSNRDescription =
-  psnr => {
-
+  const getPSNRDescription = (psnr) => {
     if (psnr > 40) {
       return {
         status: "good",
-        text: "Kualitas Enhanced Image sangat baik dengan tingkat distorsi yang sangat rendah dibandingkan citra asli."
+        text: "Kualitas Enhanced Image sangat baik dengan tingkat distorsi yang sangat rendah dibandingkan citra asli.",
       };
     }
 
     if (psnr >= 30) {
       return {
         status: "moderate",
-        text: "Kualitas Enhanced Image masih baik dan detail objek tetap dapat dipertahankan dibandingkan citra asli."
+        text: "Kualitas Enhanced Image masih baik dan detail objek tetap dapat dipertahankan dibandingkan citra asli.",
       };
     }
 
     return {
       status: "poor",
-      text: "Enhanced Image mengalami perubahan intensitas piksel yang cukup signifikan dibandingkan citra asli."
+      text: "Enhanced Image mengalami perubahan intensitas piksel yang cukup signifikan dibandingkan citra asli.",
     };
-
   };
 
-const getSSIMDescription =
-  ssim => {
-
-    if (ssim > 0.90) {
+  const getSSIMDescription = (ssim) => {
+    if (ssim > 0.9) {
       return {
         status: "good",
-        text: "Struktur Enhanced Image sangat mirip dengan citra asli."
+        text: "Struktur Enhanced Image sangat mirip dengan citra asli.",
       };
     }
 
     if (ssim >= 0.75) {
       return {
         status: "moderate",
-        text: "Struktur Enhanced Image masih cukup terjaga meskipun terjadi perubahan kontras."
+        text: "Struktur Enhanced Image masih cukup terjaga meskipun terjadi perubahan kontras.",
       };
     }
 
     return {
       status: "poor",
-      text: "Perubahan struktur Enhanced Image mulai terlihat akibat proses enhancement."
+      text: "Perubahan struktur Enhanced Image mulai terlihat akibat proses enhancement.",
     };
-
   };
 
-const getStdDevDescription =
-  (values) => {
+  const getStdDevDescription = (values) => {
+    const original = Number(values.original);
 
-    const original =
-      Number(values.original);
+    const enhanced = Number(values.enhanced);
 
-    const enhanced =
-      Number(values.enhanced);
+    const almostSameThreshold = 5;
 
-    const almostSameThreshold =
-      5;
-
-    const almostSame =
-      Math.abs(enhanced - original) <=
-        almostSameThreshold;
+    const almostSame = Math.abs(enhanced - original) <= almostSameThreshold;
 
     if (almostSame) {
       return {
         status: "moderate",
-        text: "Penyebaran intensitas pada Enhanced Image relatif sama dengan citra asli, sehingga peningkatan kontrasnya kecil."
+        text: "Penyebaran intensitas pada Enhanced Image relatif sama dengan citra asli, sehingga peningkatan kontrasnya kecil.",
       };
     }
 
     if (enhanced > original) {
       return {
         status: "good",
-        text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih besar daripada citra asli, sehingga kontras citra meningkat."
+        text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih besar daripada citra asli, sehingga kontras citra meningkat.",
       };
     }
 
     return {
       status: "poor",
-      text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih rendah daripada citra asli; peningkatan kontras belum terlihat dari nilai Standard Deviation."
+      text: "Enhanced Image memiliki penyebaran intensitas piksel yang lebih rendah daripada citra asli; peningkatan kontras belum terlihat dari nilai Standard Deviation.",
     };
-
   };
 
-const getConclusionDescription =
-  (
-    metricValues,
-    stdDevValues
-  ) => {
+  const getConclusionDescription = (metricValues, stdDevValues) => {
+    const mse = Number(metricValues.mse);
 
-    const mse =
-      Number(metricValues.mse);
+    const psnr = Number(metricValues.psnr);
 
-    const psnr =
-      Number(metricValues.psnr);
+    const ssim = Number(metricValues.ssim);
 
-    const ssim =
-      Number(metricValues.ssim);
+    const original = Number(stdDevValues.original);
 
-    const original =
-      Number(stdDevValues.original);
+    const enhanced = Number(stdDevValues.enhanced);
 
-    const enhanced =
-      Number(stdDevValues.enhanced);
+    const contrastImproved = enhanced > original;
 
-    const contrastImproved =
-      enhanced > original;
+    const structurePreserved = ssim >= 0.75;
 
-    const structurePreserved =
-      ssim >= 0.75;
+    const qualityPreserved = mse < 1000 && psnr >= 30;
 
-    const qualityPreserved =
-      mse < 1000 &&
-      psnr >= 30;
-
-    if (
-      contrastImproved &&
-      structurePreserved &&
-      qualityPreserved
-    ) {
+    if (contrastImproved && structurePreserved && qualityPreserved) {
       return {
         status: "good",
-        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa enhancement meningkatkan kontras tanpa mengubah struktur utama objek secara signifikan. Peningkatan Standard Deviation menunjukkan distribusi intensitas piksel Enhanced Image lebih menyebar sehingga objek lebih mudah diamati."
+        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, nilai MSE, PSNR, SSIM, dan Standard Deviation menunjukkan bahwa enhancement meningkatkan kontras tanpa mengubah struktur utama objek secara signifikan. Peningkatan Standard Deviation menunjukkan distribusi intensitas piksel Enhanced Image lebih menyebar sehingga objek lebih mudah diamati.",
       };
     }
 
-    if (
-      contrastImproved &&
-      structurePreserved
-    ) {
+    if (contrastImproved && structurePreserved) {
       return {
         status: "moderate",
-        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, enhancement mampu memperbaiki kontras dan struktur objek masih terjaga, tetapi perubahan intensitas piksel tetap perlu diperhatikan karena dapat memengaruhi kualitas visual."
+        text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, enhancement mampu memperbaiki kontras dan struktur objek masih terjaga, tetapi perubahan intensitas piksel tetap perlu diperhatikan karena dapat memengaruhi kualitas visual.",
       };
     }
 
     return {
       status: "poor",
-      text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, hasil enhancement belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti kestabilan struktur citra yang memadai."
+      text: "Berdasarkan perbandingan citra asli dengan Enhanced Image, hasil enhancement belum optimal karena perubahan visual cukup besar atau peningkatan kontras belum diikuti kestabilan struktur citra yang memadai.",
     };
-
   };
 
-const getInterpretationIconClass =
-  status => {
-
+  const getInterpretationIconClass = (status) => {
     if (status === "good")
       return "bg-emerald-100 text-emerald-700 border-emerald-200";
 
@@ -236,94 +169,48 @@ const getInterpretationIconClass =
       return "bg-amber-100 text-amber-700 border-amber-200";
 
     return "bg-red-100 text-red-700 border-red-200";
-
   };
 
-const getInterpretationIcon =
-  status => {
+  const getInterpretationIcon = (status) => {
+    if (status === "good") return "✓";
 
-    if (status === "good")
-      return "✓";
-
-    if (status === "moderate")
-      return "!";
+    if (status === "moderate") return "!";
 
     return "×";
-
   };
 
-const formatMetricValue =
-  value => {
+  const formatMetricValue = (value) => {
+    const numberValue = Number(value);
 
-    const numberValue =
-      Number(value);
-
-    if (
-      Number.isFinite(
-        numberValue
-      )
-    ) {
+    if (Number.isFinite(numberValue)) {
       return numberValue.toFixed(4);
     }
 
-    return value ??
-      "-";
-
+    return value ?? "-";
   };
 
-const getProcessedImageUrl =
-  filename =>
-    `http://localhost:5000/uploads/processed/${filename}`;
+  const getProcessedImageUrl = (filename) =>
+    `${BACKEND_BASE_URL}/uploads/processed/${filename}`;
 
-const sanitizeFileNamePart =
-  value =>
-    String(
-      value ||
-      "capture"
-    )
+  const sanitizeFileNamePart = (value) =>
+    String(value || "capture")
       .trim()
       .toLowerCase()
-      .replace(
-        /[^a-z0-9]+/g,
-        "-"
-      )
-      .replace(
-        /^-+|-+$/g,
-        ""
-      ) ||
-    "capture";
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "capture";
 
-const getDownloadFileName =
-  (
-    prefix,
-    capture,
-    filename
-  ) => {
+  const getDownloadFileName = (prefix, capture, filename) => {
+    const extension = filename?.split(".").pop() || "png";
 
-    const extension =
-      filename?.split(".")
-        .pop() ||
-      "png";
-
-    return [
-      prefix,
-      sanitizeFileNamePart(
-        getDeviceDisplayName(
-          capture
-        )
-      ),
-      capture?._id ||
-        "capture"
-    ].join("-") +
-      `.${extension}`;
-
+    return (
+      [
+        prefix,
+        sanitizeFileNamePart(getDeviceDisplayName(capture)),
+        capture?._id || "capture",
+      ].join("-") + `.${extension}`
+    );
   };
-const renderInterpretationRow =
-  (
-    label,
-    interpretation
-  ) => (
-
+  const renderInterpretationRow = (label, interpretation) => (
     <div
       className="
       flex
@@ -332,7 +219,6 @@ const renderInterpretationRow =
       "
       key={label}
     >
-
       <span
         className={`
         mt-0.5
@@ -346,16 +232,10 @@ const renderInterpretationRow =
         border
         text-sm
         font-bold
-        ${getInterpretationIconClass(
-          interpretation.status
-        )}
+        ${getInterpretationIconClass(interpretation.status)}
         `}
       >
-        {
-          getInterpretationIcon(
-            interpretation.status
-          )
-        }
+        {getInterpretationIcon(interpretation.status)}
       </span>
 
       <p>
@@ -365,30 +245,18 @@ const renderInterpretationRow =
         </span>
         {interpretation.text}
       </p>
-
     </div>
-
   );
 
-const getEnhancedMetrics =
-  metricValues =>
-    metricValues?.enhanced ||
-    metricValues;
+  const getEnhancedMetrics = (metricValues) =>
+    metricValues?.enhanced || metricValues;
 
-const getHeMetrics =
-  metricValues =>
-    metricValues?.he ||
-    (!metricValues?.enhanced
-      ? metricValues
-      : null);
+  const getHeMetrics = (metricValues) =>
+    metricValues?.he || (!metricValues?.enhanced ? metricValues : null);
 
-const getFinalMetrics =
-  metricValues =>
-    getEnhancedMetrics(metricValues);
+  const getFinalMetrics = (metricValues) => getEnhancedMetrics(metricValues);
 
-const renderMetricSummary =
-  metricValues => {
-
+  const renderMetricSummary = (metricValues) => {
     if (!metricValues) {
       return null;
     }
@@ -396,22 +264,16 @@ const renderMetricSummary =
     const metricCards = [
       {
         label: "Nilai MSE",
-        value: formatMetricValue(
-          metricValues.mse
-        )
+        value: formatMetricValue(metricValues.mse),
       },
       {
         label: "Nilai PSNR",
-        value: `${formatMetricValue(
-          metricValues.psnr
-        )} dB`
+        value: `${formatMetricValue(metricValues.psnr)} dB`,
       },
       {
         label: "Nilai SSIM",
-        value: formatMetricValue(
-          metricValues.ssim
-        )
-      }
+        value: formatMetricValue(metricValues.ssim),
+      },
     ];
 
     return (
@@ -422,684 +284,355 @@ const renderMetricSummary =
         gap-3
         "
       >
-        {
-          metricCards.map(
-            metric => (
-              <div
-                className="
+        {metricCards.map((metric) => (
+          <div
+            className="
                 rounded-2xl
                 border
                 border-slate-200
                 bg-slate-50
                 p-4
                 "
-                key={metric.label}
-              >
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                  {metric.label}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {metric.value}
-                </p>
-              </div>
-            )
-          )
-        }
+            key={metric.label}
+          >
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              {metric.label}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {metric.value}
+            </p>
+          </div>
+        ))}
       </div>
     );
-
   };
-  const [
-  histogramData,
-  setHistogramData
-] = useState(null);
+  const [histogramData, setHistogramData] = useState(null);
 
-  const [
-    imageVersion,
-    setImageVersion
-  ] = useState(0);
+  const [imageVersion, setImageVersion] = useState(0);
 
-  const [
-    downloadingVideoTarget,
-    setDownloadingVideoTarget
-  ] = useState("");
+  const [downloadingVideoTarget, setDownloadingVideoTarget] = useState("");
 
-  const videoRef =
-    useRef(null);
+  const videoRef = useRef(null);
 
-  const canvasRef =
-    useRef(null);
+  const canvasRef = useRef(null);
 
-  const heCanvasRef =
-    useRef(null);
+  const heCanvasRef = useRef(null);
 
-  const enhancedCanvasRef =
-    useRef(null);
+  const enhancedCanvasRef = useRef(null);
 
-  const [
-    originalHistogram,
-    setOriginalHistogram
-  ] = useState([]);
+  const [originalHistogram, setOriginalHistogram] = useState([]);
 
-  const [
-    heHistogramRealtime,
-    setHeHistogramRealtime
-  ] = useState([]);
+  const [heHistogramRealtime, setHeHistogramRealtime] = useState([]);
 
-  const [
-    enhancedHistogramRealtime,
-    setEnhancedHistogramRealtime
-  ] = useState([]);
+  const [enhancedHistogramRealtime, setEnhancedHistogramRealtime] = useState(
+    [],
+  );
 
-  const [
-    stdDeviation,
-    setStdDeviation
-  ] = useState({
+  const [stdDeviation, setStdDeviation] = useState({
     original: 0,
     he: 0,
-    enhanced: 0
+    enhanced: 0,
   });
 
+  const resetSelectedAnalysis = () => {
+    setSelectedCapture(null);
 
-  const resetSelectedAnalysis =
-    () => {
+    setMetrics(null);
 
-      setSelectedCapture(
-        null
-      );
+    setHistogramData(null);
 
-      setMetrics(
-        null
-      );
+    setStdDeviation({
+      original: 0,
+      he: 0,
+      enhanced: 0,
+    });
+  };
 
-      setHistogramData(
-        null
-      );
+  const getCaptureDeviceId = (capture) =>
+    capture?.deviceId?._id || capture?.deviceId || "";
 
-      setStdDeviation({
-        original: 0,
-        he: 0,
-        enhanced: 0
-      });
+  const getCaptureDateKey = (capture) => {
+    const date = new Date(capture?.capturedAt || capture?.createdAt);
 
-    };
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
 
-  const getCaptureDeviceId =
-    capture =>
-      capture?.deviceId?._id ||
-      capture?.deviceId ||
-      "";
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+  };
 
-  const getCaptureDateKey =
-    capture => {
+  const getCaptureDateLabel = (dateKey) => {
+    if (!dateKey) {
+      return "Tanggal tidak tersedia";
+    }
 
-      const date =
-        new Date(
-          capture?.capturedAt ||
-          capture?.createdAt
-        );
+    const [year, month, day] = dateKey.split("-");
 
-      if (
-        Number.isNaN(
-          date.getTime()
-        )
-      ) {
-        return "";
+    return [day, month, year].join("/");
+  };
+
+  const deviceFilterOptions = Array.from(
+    captures.reduce((map, capture) => {
+      const deviceId = getCaptureDeviceId(capture);
+
+      if (deviceId) {
+        map.set(deviceId, getDeviceDisplayName(capture));
       }
 
-      return [
-        date.getFullYear(),
-        String(
-          date.getMonth() + 1
-        ).padStart(2, "0"),
-        String(
-          date.getDate()
-        ).padStart(2, "0")
-      ].join("-");
+      return map;
+    }, new Map()),
+  );
 
-    };
+  const dateFilterOptions = Array.from(
+    captures.reduce((map, capture) => {
+      const dateKey = getCaptureDateKey(capture);
 
-  const getCaptureDateLabel =
-    dateKey => {
-
-      if (!dateKey) {
-        return "Tanggal tidak tersedia";
+      if (dateKey) {
+        map.set(dateKey, getCaptureDateLabel(dateKey));
       }
 
-      const [
-        year,
-        month,
-        day
-      ] = dateKey.split("-");
+      return map;
+    }, new Map()),
+  );
 
-      return [
-        day,
-        month,
-        year
-      ].join("/");
+  const filteredCaptures = captures.filter((capture) => {
+    const matchesDevice =
+      !selectedDeviceFilter ||
+      getCaptureDeviceId(capture) === selectedDeviceFilter;
 
-    };
+    const matchesDate =
+      !selectedDateFilter || getCaptureDateKey(capture) === selectedDateFilter;
 
-  const deviceFilterOptions =
-    Array.from(
-      captures.reduce(
-        (
-          map,
-          capture
-        ) => {
+    return matchesDevice && matchesDate;
+  });
+  const calculateStdDeviation = (histogram) => {
+    if (!histogram || histogram.length === 0) {
+      return "0.00";
+    }
 
-          const deviceId =
-            getCaptureDeviceId(
-              capture
-            );
+    const pixelCount = histogram.reduce((total, value) => total + value, 0);
 
-          if (deviceId) {
-            map.set(
-              deviceId,
-              getDeviceDisplayName(
-                capture
-              )
-            );
-          }
+    if (pixelCount === 0) {
+      return "0.00";
+    }
 
-          return map;
+    const mean =
+      histogram.reduce(
+        (total, value, intensity) => total + value * intensity,
+        0,
+      ) / pixelCount;
 
-        },
-        new Map()
-      )
-    );
+    const variance =
+      histogram.reduce(
+        (total, value, intensity) =>
+          total + value * Math.pow(intensity - mean, 2),
+        0,
+      ) / pixelCount;
 
-  const dateFilterOptions =
-    Array.from(
-      captures.reduce(
-        (
-          map,
-          capture
-        ) => {
+    return Math.sqrt(variance).toFixed(2);
+  };
 
-          const dateKey =
-            getCaptureDateKey(
-              capture
-            );
-
-          if (dateKey) {
-            map.set(
-              dateKey,
-              getCaptureDateLabel(
-                dateKey
-              )
-            );
-          }
-
-          return map;
-
-        },
-        new Map()
-      )
-    );
-
-  const filteredCaptures =
-    captures.filter(
-      capture => {
-
-        const matchesDevice =
-          !selectedDeviceFilter ||
-          getCaptureDeviceId(
-            capture
-          ) === selectedDeviceFilter;
-
-        const matchesDate =
-          !selectedDateFilter ||
-          getCaptureDateKey(
-            capture
-          ) === selectedDateFilter;
-
-        return matchesDevice &&
-          matchesDate;
-
-      }
-    );
-  const calculateStdDeviation =
-    (histogram) => {
-
-      if (
-        !histogram ||
-        histogram.length === 0
-      ) {
-        return "0.00";
-      }
-
-      const pixelCount =
-        histogram.reduce(
-          (total, value) =>
-            total + value,
-          0
-        );
-
-      if (
-        pixelCount === 0
-      ) {
-        return "0.00";
-      }
-
-      const mean =
-        histogram.reduce(
-          (total, value, intensity) =>
-            total + (
-              value * intensity
-            ),
-          0
-        ) / pixelCount;
-
-      const variance =
-        histogram.reduce(
-          (total, value, intensity) =>
-            total + (
-              value *
-              Math.pow(
-                intensity - mean,
-                2
-              )
-            ),
-          0
-        ) / pixelCount;
-
-      return Math.sqrt(
-        variance
-      ).toFixed(2);
-
-    };
-
-  const updateStdDeviationFromHistogram =
-    (histogram) => {
-
-      setStdDeviation({
-        original:
-          calculateStdDeviation(
-            histogram?.originalHistogram
-          ),
-        he:
-          calculateStdDeviation(
-            histogram?.heHistogram
-          ),
-        enhanced:
-          calculateStdDeviation(
-            histogram?.enhancedHistogram
-          )
-      });
-
-    };
+  const updateStdDeviationFromHistogram = (histogram) => {
+    setStdDeviation({
+      original: calculateStdDeviation(histogram?.originalHistogram),
+      he: calculateStdDeviation(histogram?.heHistogram),
+      enhanced: calculateStdDeviation(histogram?.enhancedHistogram),
+    });
+  };
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getCaptures();
 
-    const fetchData =
-      async () => {
-
-        try {
-
-          const data =
-            await getCaptures();
-
-          setCaptures(data.captures);
-
-        } catch (error) {
-
-          console.log(
-            error
-          );
-
-        }
-
-      };
+        setCaptures(data.captures);
+      } catch (error) {
+        console.log(error);
+      }
+    };
 
     fetchData();
-
   }, []);
 
+  const handleDownloadImage = async (filename, prefix) => {
+    if (!filename) {
+      return;
+    }
 
-  const handleDownloadImage =
-    async (
-      filename,
-      prefix
-    ) => {
+    try {
+      const response = await fetch(getProcessedImageUrl(filename));
 
-      if (!filename) {
-        return;
+      if (!response.ok) {
+        throw new Error("Download failed");
       }
 
-      try {
+      const blob = await response.blob();
 
-        const response =
-          await fetch(
-            getProcessedImageUrl(
-              filename
-            )
-          );
+      const objectUrl = URL.createObjectURL(blob);
 
-        if (!response.ok) {
-          throw new Error(
-            "Download failed"
-          );
+      const link = document.createElement("a");
+
+      link.href = objectUrl;
+      link.download = getDownloadFileName(prefix, selectedCapture, filename);
+
+      document.body.appendChild(link);
+
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.log(error);
+
+      window.alert("Gagal mengunduh gambar");
+    }
+  };
+
+  const handleDownloadVideo = async (canvasRef, prefix) => {
+    const video = videoRef.current;
+
+    const canvas = canvasRef.current;
+
+    if (
+      !video ||
+      !canvas ||
+      !canvas.captureStream ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      window.alert("Browser tidak mendukung download video dari canvas");
+      return;
+    }
+
+    if (!canvas.width || !canvas.height) {
+      analyzeVideoFrame();
+    }
+
+    try {
+      setDownloadingVideoTarget(prefix);
+
+      if (Number.isFinite(video.duration)) {
+        video.pause();
+        video.currentTime = 0;
+      }
+
+      analyzeVideoFrame();
+
+      const stream = canvas.captureStream(30);
+
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm";
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+      });
+
+      const chunks = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
         }
+      };
 
-        const blob =
-          await response.blob();
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
 
-        const objectUrl =
-          URL.createObjectURL(
-            blob
-          );
+        const blob = new Blob(chunks, {
+          type: "video/webm",
+        });
 
-        const link =
-          document.createElement(
-            "a"
-          );
+        const objectUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
 
         link.href = objectUrl;
-        link.download =
-          getDownloadFileName(
-            prefix,
-            selectedCapture,
-            filename
-          );
 
-        document.body.appendChild(
-          link
+        link.download = getDownloadFileName(
+          prefix,
+          selectedCapture,
+          "video.webm",
         );
+
+        document.body.appendChild(link);
 
         link.click();
         link.remove();
 
-        URL.revokeObjectURL(
-          objectUrl
-        );
+        URL.revokeObjectURL(objectUrl);
 
-      } catch (error) {
+        setDownloadingVideoTarget("");
+      };
 
-        console.log(
-          error
-        );
-
-        window.alert(
-          "Gagal mengunduh gambar"
-        );
-
-      }
-
-    };
-
-  const handleDownloadVideo =
-    async (
-      canvasRef,
-      prefix
-    ) => {
-
-      const video =
-        videoRef.current;
-
-      const canvas =
-        canvasRef.current;
-
-      if (
-        !video ||
-        !canvas ||
-        !canvas.captureStream ||
-        typeof MediaRecorder === "undefined"
-      ) {
-        window.alert(
-          "Browser tidak mendukung download video dari canvas"
-        );
-        return;
-      }
-
-      if (
-        !canvas.width ||
-        !canvas.height
-      ) {
-        analyzeVideoFrame();
-      }
-
-      try {
-
-        setDownloadingVideoTarget(
-          prefix
-        );
-
-        if (
-          Number.isFinite(
-            video.duration
-          )
-        ) {
-          video.pause();
-          video.currentTime = 0;
+      const stopRecording = () => {
+        if (recorder.state !== "inactive") {
+          recorder.stop();
         }
 
-        analyzeVideoFrame();
+        video.removeEventListener("ended", stopRecording);
+      };
 
-        const stream =
-          canvas.captureStream(
-            30
-          );
+      video.addEventListener("ended", stopRecording, {
+        once: true,
+      });
 
-        const mimeType =
-          MediaRecorder.isTypeSupported(
-            "video/webm;codecs=vp9"
-          )
-            ? "video/webm;codecs=vp9"
-            : "video/webm";
+      recorder.start();
 
-        const recorder =
-          new MediaRecorder(
-            stream,
-            {
-              mimeType
-            }
-          );
+      await video.play();
+    } catch (error) {
+      console.log(error);
 
-        const chunks =
-          [];
+      setDownloadingVideoTarget("");
 
-        recorder.ondataavailable =
-          event => {
+      window.alert("Gagal mengunduh video");
+    }
+  };
+  const handleProcess = async () => {
+    try {
+      await processHistogram(selectedCapture._id);
 
-            if (
-              event.data &&
-              event.data.size > 0
-            ) {
-              chunks.push(
-                event.data
-              );
-            }
+      const data = await getCaptures();
 
-          };
+      setCaptures(data.captures);
 
-        recorder.onstop =
-          () => {
+      const updatedCapture = data.captures.find(
+        (item) => item._id === selectedCapture._id,
+      );
 
-            stream.getTracks()
-              .forEach(
-                track =>
-                  track.stop()
-              );
+      setSelectedCapture(updatedCapture);
 
-            const blob =
-              new Blob(
-                chunks,
-                {
-                  type:
-                    "video/webm"
-                }
-              );
+      const metricsData = await getMetrics(selectedCapture._id);
 
-            const objectUrl =
-              URL.createObjectURL(
-                blob
-              );
+      setMetrics(metricsData);
 
-            const link =
-              document.createElement(
-                "a"
-              );
+      const histogram = await getHistogramData(selectedCapture._id);
 
-            link.href =
-              objectUrl;
+      setHistogramData(histogram);
 
-            link.download =
-              getDownloadFileName(
-                prefix,
-                selectedCapture,
-                "video.webm"
-              );
+      updateStdDeviationFromHistogram(histogram);
 
-            document.body.appendChild(
-              link
-            );
+      setImageVersion(Date.now());
 
-            link.click();
-            link.remove();
+      alert("Histogram Equalization Success");
+    } catch (error) {
+      console.log(error);
 
-            URL.revokeObjectURL(
-              objectUrl
-            );
+      alert("Histogram Equalization Failed");
+    }
+  };
 
-            setDownloadingVideoTarget(
-              ""
-            );
+  const analyzeVideoFrame = () => {
+    const video = videoRef.current;
 
-          };
+    const canvas = canvasRef.current;
 
-        const stopRecording =
-          () => {
+    const heCanvas = heCanvasRef.current;
 
-            if (
-              recorder.state !==
-              "inactive"
-            ) {
-              recorder.stop();
-            }
-
-            video.removeEventListener(
-              "ended",
-              stopRecording
-            );
-
-          };
-
-        video.addEventListener(
-          "ended",
-          stopRecording,
-          {
-            once:
-              true
-          }
-        );
-
-        recorder.start();
-
-        await video.play();
-
-      } catch (error) {
-
-        console.log(
-          error
-        );
-
-        setDownloadingVideoTarget(
-          ""
-        );
-
-        window.alert(
-          "Gagal mengunduh video"
-        );
-
-      }
-
-    };
-  const handleProcess =
-    async () => {
-
-      try {
-
-        await processHistogram(
-          selectedCapture._id
-        );
-
-        const data =
-          await getCaptures();
-
-        setCaptures(
-          data.captures
-        );
-
-        const updatedCapture =
-          data.captures.find(
-            (item) =>
-              item._id ===
-              selectedCapture._id
-          );
-
-        setSelectedCapture(
-          updatedCapture
-        );
-
-        const metricsData =
-          await getMetrics(
-            selectedCapture._id
-          );
-
-        setMetrics(
-          metricsData
-        );
-
-        const histogram =
-          await getHistogramData(
-            selectedCapture._id
-          );
-
-        setHistogramData(
-          histogram
-        );
-
-        updateStdDeviationFromHistogram(
-          histogram
-        );
-
-        setImageVersion(
-          Date.now()
-        );
-
-        alert(
-          "Histogram Equalization Success"
-        );
-
-      } catch (error) {
-
-        console.log(
-          error
-        );
-
-        alert(
-          "Histogram Equalization Failed"
-        );
-
-      }
-
-    };
-
-  const analyzeVideoFrame =
-  () => {
-
-    const video =
-      videoRef.current;
-
-    const canvas =
-      canvasRef.current;
-
-    const heCanvas =
-      heCanvasRef.current;
-
-    const enhancedCanvas =
-      enhancedCanvasRef.current;
+    const enhancedCanvas = enhancedCanvasRef.current;
 
     if (
       !video ||
@@ -1113,393 +646,181 @@ const renderMetricSummary =
       return;
     }
 
-    const ctx =
-      canvas.getContext(
-        "2d",
-        {
-          willReadFrequently:
-            true
-        }
-      );
+    const ctx = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
 
-    const heCtx =
-      heCanvas.getContext(
-        "2d"
-      );
+    const heCtx = heCanvas.getContext("2d");
 
-    const enhancedCtx =
-      enhancedCanvas.getContext(
-        "2d"
-      );
+    const enhancedCtx = enhancedCanvas.getContext("2d");
 
-    const width =
-      video.videoWidth;
+    const width = video.videoWidth;
 
-    const height =
-      video.videoHeight;
+    const height = video.videoHeight;
 
-    if (
-      canvas.width !== width ||
-      canvas.height !== height
-    ) {
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
 
-      canvas.width =
-        width;
+      canvas.height = height;
 
-      canvas.height =
-        height;
+      heCanvas.width = width;
 
-      heCanvas.width =
-        width;
+      heCanvas.height = height;
 
-      heCanvas.height =
-        height;
+      enhancedCanvas.width = width;
 
-      enhancedCanvas.width =
-        width;
-
-      enhancedCanvas.height =
-        height;
-
+      enhancedCanvas.height = height;
     }
 
-    ctx.drawImage(
-      video,
-      0,
-      0,
-      width,
-      height
-    );
+    ctx.drawImage(video, 0, 0, width, height);
 
-    const imageData =
-      ctx.getImageData(
-        0,
-        0,
-        canvas.width,
-        canvas.height
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    const pixels = imageData.data;
+
+    const originalHistogramValues = Array(256).fill(0);
+
+    const grayValues = new Uint8ClampedArray(width * height);
+
+    for (let i = 0, pixelIndex = 0; i < pixels.length; i += 4, pixelIndex++) {
+      const gray = Math.round(
+        0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2],
       );
 
-    const pixels =
-      imageData.data;
+      grayValues[pixelIndex] = gray;
 
-    const originalHistogramValues =
-      Array(256).fill(0);
-
-    const grayValues =
-      new Uint8ClampedArray(
-        width * height
-      );
-
-    for (
-      let i = 0, pixelIndex = 0;
-      i < pixels.length;
-      i += 4, pixelIndex++
-    ) {
-
-      const gray =
-        Math.round(
-          (0.299 * pixels[i]) +
-          (0.587 * pixels[i + 1]) +
-          (0.114 * pixels[i + 2])
-        );
-
-      grayValues[
-        pixelIndex
-      ] =
-        gray;
-
-      originalHistogramValues[
-        gray
-      ]++;
-
+      originalHistogramValues[gray]++;
     }
 
-    const pixelCount =
-      grayValues.length;
+    const pixelCount = grayValues.length;
 
     let cdf = 0;
 
     let cdfMin = 0;
 
-    const equalizationMap =
-      Array(256).fill(0);
+    const equalizationMap = Array(256).fill(0);
 
-    for (
-      let intensity = 0;
-      intensity < 256;
-      intensity++
-    ) {
+    for (let intensity = 0; intensity < 256; intensity++) {
+      cdf += originalHistogramValues[intensity];
 
-      cdf +=
-        originalHistogramValues[
-          intensity
-        ];
-
-      if (
-        cdfMin === 0 &&
-        cdf > 0
-      ) {
+      if (cdfMin === 0 && cdf > 0) {
         cdfMin = cdf;
       }
 
-      const denominator =
-        pixelCount - cdfMin;
+      const denominator = pixelCount - cdfMin;
 
-      equalizationMap[
-        intensity
-      ] =
+      equalizationMap[intensity] =
         denominator > 0
-          ? Math.round(
-            (
-              (cdf - cdfMin) /
-              denominator
-            ) * 255
-          )
+          ? Math.round(((cdf - cdfMin) / denominator) * 255)
           : intensity;
-
     }
 
-    const heImageData =
-      heCtx.createImageData(
-        width,
-        height
+    const heImageData = heCtx.createImageData(width, height);
+
+    const enhancedImageData = enhancedCtx.createImageData(width, height);
+
+    const heHistogramValues = Array(256).fill(0);
+
+    const enhancedHistogramValues = Array(256).fill(0);
+
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
+      const originalGray = grayValues[pixelIndex];
+
+      const heGray = equalizationMap[originalGray];
+
+      const enhancedGray = Math.max(
+        0,
+        Math.min(255, Math.round((heGray - 128) * 1.2 + 136)),
       );
 
-    const enhancedImageData =
-      enhancedCtx.createImageData(
-        width,
-        height
+      const dataIndex = pixelIndex * 4;
+
+      const luminanceScale = originalGray > 0 ? enhancedGray / originalGray : 0;
+
+      const enhancedRed = Math.min(
+        255,
+        Math.round(pixels[dataIndex] * luminanceScale),
       );
 
-    const heHistogramValues =
-      Array(256).fill(0);
+      const enhancedGreen = Math.min(
+        255,
+        Math.round(pixels[dataIndex + 1] * luminanceScale),
+      );
 
-    const enhancedHistogramValues =
-      Array(256).fill(0);
+      const enhancedBlue = Math.min(
+        255,
+        Math.round(pixels[dataIndex + 2] * luminanceScale),
+      );
 
-    for (
-      let pixelIndex = 0;
-      pixelIndex < pixelCount;
-      pixelIndex++
-    ) {
+      const enhancedLuminance = Math.round(
+        0.299 * enhancedRed + 0.587 * enhancedGreen + 0.114 * enhancedBlue,
+      );
 
-      const originalGray =
-        grayValues[
-          pixelIndex
-        ];
+      heImageData.data[dataIndex] = heGray;
 
-      const heGray =
-        equalizationMap[
-          originalGray
-        ];
+      heImageData.data[dataIndex + 1] = heGray;
 
-      const enhancedGray =
-        Math.max(
-          0,
-          Math.min(
-            255,
-            Math.round(
-              (
-                (heGray - 128) *
-                1.2
-              ) +
-              136
-            )
-          )
-        );
+      heImageData.data[dataIndex + 2] = heGray;
 
-      const dataIndex =
-        pixelIndex * 4;
+      heImageData.data[dataIndex + 3] = 255;
 
-      const luminanceScale =
-        originalGray > 0
-          ? enhancedGray /
-            originalGray
-          : 0;
+      enhancedImageData.data[dataIndex] = enhancedRed;
 
-      const enhancedRed =
-        Math.min(
-          255,
-          Math.round(
-            pixels[
-              dataIndex
-            ] *
-            luminanceScale
-          )
-        );
+      enhancedImageData.data[dataIndex + 1] = enhancedGreen;
 
-      const enhancedGreen =
-        Math.min(
-          255,
-          Math.round(
-            pixels[
-              dataIndex + 1
-            ] *
-            luminanceScale
-          )
-        );
+      enhancedImageData.data[dataIndex + 2] = enhancedBlue;
 
-      const enhancedBlue =
-        Math.min(
-          255,
-          Math.round(
-            pixels[
-              dataIndex + 2
-            ] *
-            luminanceScale
-          )
-        );
+      enhancedImageData.data[dataIndex + 3] = 255;
 
-      const enhancedLuminance =
-        Math.round(
-          (0.299 * enhancedRed) +
-          (0.587 * enhancedGreen) +
-          (0.114 * enhancedBlue)
-        );
+      heHistogramValues[heGray]++;
 
-      heImageData.data[
-        dataIndex
-      ] =
-        heGray;
-
-      heImageData.data[
-        dataIndex + 1
-      ] =
-        heGray;
-
-      heImageData.data[
-        dataIndex + 2
-      ] =
-        heGray;
-
-      heImageData.data[
-        dataIndex + 3
-      ] =
-        255;
-
-      enhancedImageData.data[
-        dataIndex
-      ] =
-        enhancedRed;
-
-      enhancedImageData.data[
-        dataIndex + 1
-      ] =
-        enhancedGreen;
-
-      enhancedImageData.data[
-        dataIndex + 2
-      ] =
-        enhancedBlue;
-
-      enhancedImageData.data[
-        dataIndex + 3
-      ] =
-        255;
-
-      heHistogramValues[
-        heGray
-      ]++;
-
-      enhancedHistogramValues[
-        enhancedLuminance
-      ]++;
-
+      enhancedHistogramValues[enhancedLuminance]++;
     }
 
-    heCtx.putImageData(
-      heImageData,
-      0,
-      0
-    );
+    heCtx.putImageData(heImageData, 0, 0);
 
-    enhancedCtx.putImageData(
-      enhancedImageData,
-      0,
-      0
-    );
+    enhancedCtx.putImageData(enhancedImageData, 0, 0);
 
-    const toHistogramData =
-      histogram =>
-        histogram.map(
-        (value, index) => ({
-          intensity: index,
-          value
-        })
-      );
+    const toHistogramData = (histogram) =>
+      histogram.map((value, index) => ({
+        intensity: index,
+        value,
+      }));
 
     updateStdDeviationFromHistogram({
-      originalHistogram:
-        originalHistogramValues,
-      heHistogram:
-        heHistogramValues,
-      enhancedHistogram:
-        enhancedHistogramValues
+      originalHistogram: originalHistogramValues,
+      heHistogram: heHistogramValues,
+      enhancedHistogram: enhancedHistogramValues,
     });
 
-    setOriginalHistogram(
-      toHistogramData(
-        originalHistogramValues
-      )
-    );
+    setOriginalHistogram(toHistogramData(originalHistogramValues));
 
-    setHeHistogramRealtime(
-      toHistogramData(
-        heHistogramValues
-      )
-    );
+    setHeHistogramRealtime(toHistogramData(heHistogramValues));
 
-    setEnhancedHistogramRealtime(
-      toHistogramData(
-        enhancedHistogramValues
-      )
-    );
-
+    setEnhancedHistogramRealtime(toHistogramData(enhancedHistogramValues));
   };
 
   useEffect(() => {
+    if (selectedCapture?.mediaType !== "video") {
+      return;
+    }
 
-  if (
-    selectedCapture?.mediaType !==
-    "video"
-  ) {
-    return;
-  }
+    const interval = setInterval(analyzeVideoFrame, 100);
 
-  const interval =
-    setInterval(
-      analyzeVideoFrame,
-      100
-    );
-
-  return () =>
-    clearInterval(
-      interval
-    );
-
-}, [
-  selectedCapture
-]);
+    return () => clearInterval(interval);
+  }, [selectedCapture]);
 
   return (
-
     <MainLayout>
-
       <div className="mb-8">
+        <span className="page-kicker">AI Image Processing Lab</span>
 
-        <span className="page-kicker">
-          AI Image Processing Lab
-        </span>
-
-        <h1 className="page-title">
-          Histogram Equalization Analysis
-        </h1>
+        <h1 className="page-title">Histogram Equalization Analysis</h1>
 
         <p className="page-description">
-          Analisis citra menggunakan Histogram Equalization
-          dan peningkatan kualitas visual untuk monitoring satwa.
+          Analisis citra menggunakan Histogram Equalization dan peningkatan
+          kualitas visual untuk monitoring satwa.
         </p>
-
       </div>
 
       <div
@@ -1513,15 +834,12 @@ const renderMetricSummary =
         md:grid-cols-2
         "
       >
-
         <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
           Filter Perangkat
           <select
             value={selectedDeviceFilter}
             onChange={(event) => {
-              setSelectedDeviceFilter(
-                event.target.value
-              );
+              setSelectedDeviceFilter(event.target.value);
               resetSelectedAnalysis();
             }}
             className="
@@ -1538,24 +856,12 @@ const renderMetricSummary =
             focus:ring-emerald-500
             "
           >
-            <option value="">
-              Semua perangkat
-            </option>
-            {
-              deviceFilterOptions.map(
-                ([
-                  deviceId,
-                  deviceName
-                ]) => (
-                  <option
-                    key={deviceId}
-                    value={deviceId}
-                  >
-                    {deviceName}
-                  </option>
-                )
-              )
-            }
+            <option value="">Semua perangkat</option>
+            {deviceFilterOptions.map(([deviceId, deviceName]) => (
+              <option key={deviceId} value={deviceId}>
+                {deviceName}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -1564,9 +870,7 @@ const renderMetricSummary =
           <select
             value={selectedDateFilter}
             onChange={(event) => {
-              setSelectedDateFilter(
-                event.target.value
-              );
+              setSelectedDateFilter(event.target.value);
               resetSelectedAnalysis();
             }}
             className="
@@ -1583,27 +887,14 @@ const renderMetricSummary =
             focus:ring-emerald-500
             "
           >
-            <option value="">
-              Semua tanggal
-            </option>
-            {
-              dateFilterOptions.map(
-                ([
-                  dateKey,
-                  dateLabel
-                ]) => (
-                  <option
-                    key={dateKey}
-                    value={dateKey}
-                  >
-                    {dateLabel}
-                  </option>
-                )
-              )
-            }
+            <option value="">Semua tanggal</option>
+            {dateFilterOptions.map(([dateKey, dateLabel]) => (
+              <option key={dateKey} value={dateKey}>
+                {dateLabel}
+              </option>
+            ))}
           </select>
         </label>
-
       </div>
 
       <select
@@ -1624,156 +915,78 @@ const renderMetricSummary =
         focus:ring-emerald-500
         "
         onChange={async (e) => {
+          const capture = captures.find((item) => item._id === e.target.value);
 
-          const capture =
-            captures.find(
-              (item) =>
-                item._id ===
-                e.target.value
-            );
+          setSelectedCapture(capture);
 
-          setSelectedCapture(
-            capture
-          );
-
-          if (
-            capture?.processedImage
-          ) {
-
+          if (capture?.processedImage) {
             try {
+              const metricsData = await getMetrics(capture._id);
 
-              const metricsData =
-                await getMetrics(
-                  capture._id
-                );
+              setMetrics(metricsData);
 
-              setMetrics(
-                metricsData
-              );
+              const histogram = await getHistogramData(capture._id);
 
-              const histogram =
-                await getHistogramData(
-                  capture._id
-                );
+              setHistogramData(histogram);
 
-              setHistogramData(
-                histogram
-              );
-
-              updateStdDeviationFromHistogram(
-                histogram
-              );
-
+              updateStdDeviationFromHistogram(histogram);
             } catch (error) {
+              console.log(error);
 
-              console.log(
-                error
-              );
+              setMetrics(null);
 
-              setMetrics(
-                null
-              );
-
-              setHistogramData(
-                null
-              );
+              setHistogramData(null);
 
               setStdDeviation({
                 original: 0,
                 he: 0,
-                enhanced: 0
+                enhanced: 0,
               });
-
             }
-
           } else {
+            setMetrics(null);
 
-            setMetrics(
-              null
-            );
-
-            setHistogramData(
-              null
-             );
+            setHistogramData(null);
 
             setStdDeviation({
               original: 0,
               he: 0,
-              enhanced: 0
+              enhanced: 0,
             });
-
           }
-
         }}
       >
+        <option value="">Select Capture</option>
 
-        <option value="">
-          Select Capture
-        </option>
+        {filteredCaptures.length === 0 && (
+          <option disabled>Tidak ada capture sesuai filter</option>
+        )}
 
-        {
-          filteredCaptures.length === 0 && (
-            <option disabled>
-              Tidak ada capture sesuai filter
-            </option>
-          )
-        }
-
-        {
-          filteredCaptures.map(
-            (capture) => (
-
-              <option
-                key={
-                  capture._id
-                }
-                value={
-                  capture._id
-                }
-              >
-                {
-                  getDeviceDisplayName(
-                    capture
-                  )
-                }
-                {" - "}
-                {
-                  getCaptureDate(
-                    capture
-                  )
-                }
-              </option>
-
-            )
-          )
-        }
-
+        {filteredCaptures.map((capture) => (
+          <option key={capture._id} value={capture._id}>
+            {getDeviceDisplayName(capture)}
+            {" - "}
+            {getCaptureDate(capture)}
+          </option>
+        ))}
       </select>
 
-      {
-        selectedCapture && (
-
-          <>
-
-            <div
-              className="
+      {selectedCapture && (
+        <>
+          <div
+            className="
               flex
               items-center
               gap-3
               mb-5
               "
-            >
+          >
+            <h2 className="text-3xl font-bold text-slate-800 mt-2">
+              {getDeviceDisplayName(selectedCapture)}
+            </h2>
 
-              <h2 className="text-3xl font-bold text-slate-800 mt-2">
-                {
-                  getDeviceDisplayName(
-                    selectedCapture
-                  )
-                }
-              </h2>
-
-              <span
-                className={`
+            <span
+              className={`
                 px-2
                 py-1
                 rounded-full
@@ -1781,361 +994,276 @@ const renderMetricSummary =
                 font-semibold
                 border
                 ${
-                  selectedCapture.source ===
-                    "esp32cam"
+                  selectedCapture.source === "esp32cam"
                     ? "border-blue-100 bg-blue-50 text-blue-700"
                     : "border-emerald-100 bg-emerald-50 text-emerald-700"
                 }
                 `}
-              >
-                {
-                  selectedCapture.source ===
-                    "esp32cam"
-                    ? "ESP32-CAM"
-                    : "WEBCAM"
-                }
-              </span>
+            >
+              {selectedCapture.source === "esp32cam" ? "ESP32-CAM" : "WEBCAM"}
+            </span>
+          </div>
 
-            </div>
-
-            <div
-              className="
+          <div
+            className="
               grid
               grid-cols-1
               md:grid-cols-3
               gap-5
               "
-            >
-
-              <div
-                className="
+          >
+            <div
+              className="
                 bg-white
                   p-5
                   rounded-2xl
                   shadow-lg
                   border
                 "
-              >
-
-                <h3
-                  className="
+            >
+              <h3
+                className="
                   font-bold
                   mb-3
                   "
-                >
-                  Original Image
-                </h3>
+              >
+                Original Image
+              </h3>
 
-                {
-                  selectedCapture.mediaType ===
-                  "video"
-                  ? (
-
-                    <>
-
-                      <video
-                        ref={videoRef}
-                        crossOrigin="anonymous"
-                        controls
-                        autoPlay
-                        muted
-                        className="
+              {selectedCapture.mediaType === "video" ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    crossOrigin="anonymous"
+                    controls
+                    autoPlay
+                    muted
+                    className="
                         w-full
                         rounded
                         "
-                      >
-                        <source
-                          src={
-                            `http://localhost:5000/uploads/original/${selectedCapture.originalImage}`
-                          }
-                        />
-                      </video>
+                  >
+                    <source
+                      src={`${BACKEND_BASE_URL}/uploads/original/${selectedCapture.originalImage}`}
+                    />
+                  </video>
 
-                      <canvas
-                        ref={canvasRef}
-                        style={{
-                          display:
-                            "none"
-                        }}
-                      />
-
-                    </>
-
-                  )
-                  : (
-
-                    <img
-                      src={
-                        `http://localhost:5000/uploads/original/${selectedCapture.originalImage}`
-                      }
-                      alt="original"
-                      className="
+                  <canvas
+                    ref={canvasRef}
+                    style={{
+                      display: "none",
+                    }}
+                  />
+                </>
+              ) : (
+                <img
+                  src={`${BACKEND_BASE_URL}/uploads/original/${selectedCapture.originalImage}`}
+                  alt="original"
+                  className="
                       w-full
                       rounded
                       "
-                    />
+                />
+              )}
+            </div>
 
-                  )
-                }
-
-              </div>
-
-              <div
-                className="
+            <div
+              className="
                 bg-white
                 p-5
                 rounded-2xl
                 shadow-lg
                 border
                 "
-              >
-
-                <h3
-                  className="
+            >
+              <h3
+                className="
                   font-bold
                   mb-3
                   "
-                >
-                  Enhanced Image
-                </h3>
+              >
+                Enhanced Image
+              </h3>
 
-                {
-                  selectedCapture.mediaType ===
-                  "video" ? (
-
-                    <>
-                      <canvas
-                        ref={enhancedCanvasRef}
-                        className="
-                        w-full
-                        rounded
-                        "
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDownloadVideo(
-                            enhancedCanvasRef,
-                            "enhanced-video"
-                          )
-                        }
-                        disabled={Boolean(
-                          downloadingVideoTarget
-                        )}
-                        className="
-                        mt-4
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        rounded-xl
-                        border
-                        border-teal-200
-                        bg-teal-50
-                        px-4
-                        py-3
-                        text-sm
-                        font-bold
-                        text-teal-700
-                        transition
-                        hover:bg-teal-100
-                        disabled:cursor-not-allowed
-                        disabled:opacity-60
-                        "
-                      >
-                        {
-                          downloadingVideoTarget ===
-                          "enhanced-video"
-                            ? "Merekam Enhanced Video..."
-                            : "Download Enhanced Video"
-                        }
-                      </button>
-                    </>
-
-                  ) : (
-
-                    selectedCapture.processedImage ? (
-
-                      <>
-                        <img
-                          src={
-                            `${getProcessedImageUrl(selectedCapture.processedImage)}?v=${imageVersion}`
-                          }
-                          alt="processed"
-                          className="
-                          w-full
-                          rounded
-                          "
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDownloadImage(
-                              selectedCapture.processedImage,
-                              "enhanced"
-                            )
-                          }
-                          className="
-                          mt-4
-                          flex
-                          w-full
-                          items-center
-                          justify-center
-                          rounded-xl
-                          border
-                          border-teal-200
-                          bg-teal-50
-                          px-4
-                          py-3
-                          text-sm
-                          font-bold
-                          text-teal-700
-                          transition
-                          hover:bg-teal-100
-                          "
-                        >
-                          Download Enhanced Image
-                        </button>
-                      </>
-
-                    ) : (
-
-                      <div className="text-gray-500">
-                        No Processed Image
-                      </div>
-
-                    )
-                  )
-                }
-
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl shadow-lg border">
-
-                <h3 className="font-bold mb-3">
-                  Grayscale Image
-                </h3>
-
-                {
-                  selectedCapture.mediaType ===
-                  "video" ? (
-
-                    <>
-                      <canvas
-                        ref={heCanvasRef}
-                        className="
-                        w-full
-                        rounded
-                        "
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDownloadVideo(
-                            heCanvasRef,
-                            "grayscale-video"
-                          )
-                        }
-                        disabled={Boolean(
-                          downloadingVideoTarget
-                        )}
-                        className="
-                        mt-4
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        rounded-xl
-                        border
-                        border-teal-200
-                        bg-teal-50
-                        px-4
-                        py-3
-                        text-sm
-                        font-bold
-                        text-teal-700
-                        transition
-                        hover:bg-teal-100
-                        disabled:cursor-not-allowed
-                        disabled:opacity-60
-                        "
-                      >
-                        {
-                          downloadingVideoTarget ===
-                          "grayscale-video"
-                            ? "Merekam Grayscale Video..."
-                            : "Download Grayscale Video"
-                        }
-                      </button>
-                    </>
-
-                  ) : (
-
-                    selectedCapture.heImage ? (
-
-                      <>
-                        <img
-                          src={
-                            `${getProcessedImageUrl(selectedCapture.heImage)}?v=${imageVersion}`
-                          }
-                          alt="he"
-                          className="
-                          w-full
-                          rounded
-                          "
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDownloadImage(
-                              selectedCapture.heImage,
-                              "he"
-                            )
-                          }
-                          className="
-                          mt-4
-                          flex
-                          w-full
-                          items-center
-                          justify-center
-                          rounded-xl
-                          border
-                          border-teal-200
-                          bg-teal-50
-                          px-4
-                          py-3
-                          text-sm
-                          font-bold
-                          text-teal-700
-                          transition
-                          hover:bg-teal-100
-                          "
-                        >
-                          Download Grayscale Image
-                        </button>
-                      </>
-
-                    ) : (
-
-                      <div className="text-gray-500">
-                        No Grayscale Image
-                      </div>
-
-                    )
-                  )
-                }
-
-              </div>
-
-              {
-                metrics && (
-
-                  <div
+              {selectedCapture.mediaType === "video" ? (
+                <>
+                  <canvas
+                    ref={enhancedCanvasRef}
                     className="
+                        w-full
+                        rounded
+                        "
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadVideo(enhancedCanvasRef, "enhanced-video")
+                    }
+                    disabled={Boolean(downloadingVideoTarget)}
+                    className="
+                        mt-4
+                        flex
+                        w-full
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-teal-200
+                        bg-teal-50
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-teal-700
+                        transition
+                        hover:bg-teal-100
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                        "
+                  >
+                    {downloadingVideoTarget === "enhanced-video"
+                      ? "Merekam Enhanced Video..."
+                      : "Download Enhanced Video"}
+                  </button>
+                </>
+              ) : selectedCapture.processedImage ? (
+                <>
+                  <img
+                    src={`${getProcessedImageUrl(selectedCapture.processedImage)}?v=${imageVersion}`}
+                    alt="processed"
+                    className="
+                          w-full
+                          rounded
+                          "
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadImage(
+                        selectedCapture.processedImage,
+                        "enhanced",
+                      )
+                    }
+                    className="
+                          mt-4
+                          flex
+                          w-full
+                          items-center
+                          justify-center
+                          rounded-xl
+                          border
+                          border-teal-200
+                          bg-teal-50
+                          px-4
+                          py-3
+                          text-sm
+                          font-bold
+                          text-teal-700
+                          transition
+                          hover:bg-teal-100
+                          "
+                  >
+                    Download Enhanced Image
+                  </button>
+                </>
+              ) : (
+                <div className="text-gray-500">No Processed Image</div>
+              )}
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-lg border">
+              <h3 className="font-bold mb-3">Grayscale Image</h3>
+
+              {selectedCapture.mediaType === "video" ? (
+                <>
+                  <canvas
+                    ref={heCanvasRef}
+                    className="
+                        w-full
+                        rounded
+                        "
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadVideo(heCanvasRef, "grayscale-video")
+                    }
+                    disabled={Boolean(downloadingVideoTarget)}
+                    className="
+                        mt-4
+                        flex
+                        w-full
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-teal-200
+                        bg-teal-50
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-teal-700
+                        transition
+                        hover:bg-teal-100
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                        "
+                  >
+                    {downloadingVideoTarget === "grayscale-video"
+                      ? "Merekam Grayscale Video..."
+                      : "Download Grayscale Video"}
+                  </button>
+                </>
+              ) : selectedCapture.heImage ? (
+                <>
+                  <img
+                    src={`${getProcessedImageUrl(selectedCapture.heImage)}?v=${imageVersion}`}
+                    alt="he"
+                    className="
+                          w-full
+                          rounded
+                          "
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadImage(selectedCapture.heImage, "he")
+                    }
+                    className="
+                          mt-4
+                          flex
+                          w-full
+                          items-center
+                          justify-center
+                          rounded-xl
+                          border
+                          border-teal-200
+                          bg-teal-50
+                          px-4
+                          py-3
+                          text-sm
+                          font-bold
+                          text-teal-700
+                          transition
+                          hover:bg-teal-100
+                          "
+                  >
+                    Download Grayscale Image
+                  </button>
+                </>
+              ) : (
+                <div className="text-gray-500">No Grayscale Image</div>
+              )}
+            </div>
+
+            {metrics && (
+              <div
+                className="
                     bg-white
                     p-5
                     rounded-2xl
@@ -2143,22 +1271,15 @@ const renderMetricSummary =
                     border
                     md:col-start-2
                     "
-                  >
-                    <h3 className="font-bold mb-3">
-                      Metrik Hasil Enhanced Image
-                    </h3>
-                    {renderMetricSummary(getEnhancedMetrics(metrics))}
-                  </div>
+              >
+                <h3 className="font-bold mb-3">Metrik Hasil Enhanced Image</h3>
+                {renderMetricSummary(getEnhancedMetrics(metrics))}
+              </div>
+            )}
 
-                )
-              }
-
-              {
-                metrics &&
-                getHeMetrics(metrics) && (
-
-                  <div
-                    className="
+            {metrics && getHeMetrics(metrics) && (
+              <div
+                className="
                     bg-white
                     p-5
                     rounded-2xl
@@ -2166,22 +1287,16 @@ const renderMetricSummary =
                     border
                     md:col-start-3
                     "
-                  >
-                    <h3 className="font-bold mb-3">
-                      Metrik Hasil Grayscale Image
-                    </h3>
-                    {renderMetricSummary(getHeMetrics(metrics))}
-                  </div>
+              >
+                <h3 className="font-bold mb-3">Metrik Hasil Grayscale Image</h3>
+                {renderMetricSummary(getHeMetrics(metrics))}
+              </div>
+            )}
+          </div>
 
-                )
-              }
-            </div>
-
-            <button
-              onClick={
-                handleProcess
-              }
-              className="
+          <button
+            onClick={handleProcess}
+            className="
               premium-button
               mt-6
               px-6
@@ -2190,15 +1305,13 @@ const renderMetricSummary =
               font-bold
               transition-all
               "
-            >
-              Process Histogram
-            </button>
+          >
+            Process Histogram
+          </button>
 
-            {
-              metrics && (
-
-                <div
-                  className="
+          {metrics && (
+            <div
+              className="
                   mt-6
                   bg-white
                   rounded-2xl
@@ -2206,534 +1319,344 @@ const renderMetricSummary =
                   border
                   p-6
                   "
-                >
-
-                  <h3
-                    className="
+            >
+              <h3
+                className="
                     text-xl
                     font-bold
                     mb-4
                     "
-                  >
-                    Interpretasi Hasil
-                  </h3>
+              >
+                Interpretasi Hasil
+              </h3>
 
-
-                  <div
-                    className="
+              <div
+                className="
                     space-y-3
                     text-slate-700
                     "
-                  >
+              >
+                {renderInterpretationRow(
+                  "MSE",
+                  getMSEDescription(Number(getFinalMetrics(metrics).mse)),
+                )}
 
-                    {
-                      renderInterpretationRow(
-                        "MSE",
-                        getMSEDescription(
-                          Number(
-                            getFinalMetrics(metrics).mse
-                          )
-                        )
-                      )
-                    }
+                {renderInterpretationRow(
+                  "PSNR",
+                  getPSNRDescription(Number(getFinalMetrics(metrics).psnr)),
+                )}
 
-                    {
-                      renderInterpretationRow(
-                        "PSNR",
-                        getPSNRDescription(
-                          Number(
-                            getFinalMetrics(metrics).psnr
-                          )
-                        )
-                      )
-                    }
+                {renderInterpretationRow(
+                  "SSIM",
+                  getSSIMDescription(Number(getFinalMetrics(metrics).ssim)),
+                )}
 
-                    {
-                      renderInterpretationRow(
-                        "SSIM",
-                        getSSIMDescription(
-                          Number(
-                            getFinalMetrics(metrics).ssim
-                          )
-                        )
-                      )
-                    }
+                {renderInterpretationRow(
+                  "Standard Deviation",
+                  getStdDevDescription(stdDeviation),
+                )}
 
-                    {
-                      renderInterpretationRow(
-                        "Standard Deviation",
-                        getStdDevDescription(
-                          stdDeviation
-                        )
-                      )
-                    }
+                {renderInterpretationRow(
+                  "Kesimpulan Analisis",
+                  getConclusionDescription(
+                    getFinalMetrics(metrics),
+                    stdDeviation,
+                  ),
+                )}
+              </div>
+            </div>
+          )}
 
-                    {
-                      renderInterpretationRow(
-                        "Kesimpulan Analisis",
-                        getConclusionDescription(
-                          getFinalMetrics(metrics),
-                          stdDeviation
-                        )
-                      )
-                    }
-
-                  </div>
-
-                </div>
-
-              )
-            }
-
-
-            {
-              selectedCapture?.mediaType ===
-                "video" && (
-
-                <div
-                  className="
+          {selectedCapture?.mediaType === "video" && (
+            <div
+              className="
                   mt-8
                   grid
                   grid-cols-1
                   md:grid-cols-3
                   gap-5
                   "
-                >
-
-                  {/* ORIGINAL */}
-
-                  <div
-                    className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-                  >
-
-                    <h3
-                      className="
-                      font-bold
-                      mb-2
-                      "
-                    >
-                      Original Histogram
-                    </h3>
-
-                    <p
-                      className="
-                      mb-3
-                      "
-                    >
-                      Std Dev:
-                      {" "}
-                      {stdDeviation.original}
-                    </p>
-
-                    <ResponsiveContainer
-                      width="100%"
-                      height={300}
-                    >
-
-                      <BarChart
-                        data={originalHistogram}
-                      >
-
-                        <XAxis
-                          dataKey="intensity"
-                        />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="value"
-                          fill="#3B82F6"
-                        />
-
-                      </BarChart>
-
-                    </ResponsiveContainer>
-
-                  </div>
-
-                  {/* ENHANCED */}
-
-                  <div
-                    className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-                  >
-
-                    <h3
-                      className="
-                      font-bold
-                      mb-2
-                      "
-                    >
-                      Enhanced Histogram
-                    </h3>
-
-                    <p
-                      className="
-                      mb-3
-                      "
-                    >
-                      Std Dev:
-                      {" "}
-                      {stdDeviation.enhanced}
-                    </p>
-
-                    <ResponsiveContainer
-                      width="100%"
-                      height={300}
-                    >
-
-                      <BarChart
-                        data={
-                          enhancedHistogramRealtime
-                        }
-                      >
-
-                        <XAxis
-                          dataKey="intensity"
-                        />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="value"
-                          fill="#22C55E"
-                        />
-
-                      </BarChart>
-
-                    </ResponsiveContainer>
-
-                  </div>
-
-                  {/* Grayscale */}
-
-                  <div
-                    className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-                  >
-
-                    <h3
-                      className="
-                      font-bold
-                      mb-2
-                      "
-                    >
-                      Grayscale Histogram
-                    </h3>
-
-                    <p
-                      className="
-                      mb-3
-                      "
-                    >
-                      Std Dev:
-                      {" "}
-                      {stdDeviation.he}
-                    </p>
-
-                    <ResponsiveContainer
-                      width="100%"
-                      height={300}
-                    >
-
-                      <BarChart
-                        data={heHistogramRealtime}
-                      >
-
-                        <XAxis
-                          dataKey="intensity"
-                        />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="value"
-                          fill="#F59E0B"
-                        />
-
-                      </BarChart>
-
-                    </ResponsiveContainer>
-
-                  </div>
-
-                </div>
-
-              )
-            }
-
-            
-            {
-            histogramData && (
+            >
+              {/* ORIGINAL */}
 
               <div
                 className="
+                    bg-white
+                    p-5
+                    rounded-2xl
+                    shadow-lg
+                    border
+                    "
+              >
+                <h3
+                  className="
+                      font-bold
+                      mb-2
+                      "
+                >
+                  Original Histogram
+                </h3>
+
+                <p
+                  className="
+                      mb-3
+                      "
+                >
+                  Std Dev: {stdDeviation.original}
+                </p>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={originalHistogram}>
+                    <XAxis dataKey="intensity" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Bar dataKey="value" fill="#3B82F6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* ENHANCED */}
+
+              <div
+                className="
+                    bg-white
+                    p-5
+                    rounded-2xl
+                    shadow-lg
+                    border
+                    "
+              >
+                <h3
+                  className="
+                      font-bold
+                      mb-2
+                      "
+                >
+                  Enhanced Histogram
+                </h3>
+
+                <p
+                  className="
+                      mb-3
+                      "
+                >
+                  Std Dev: {stdDeviation.enhanced}
+                </p>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={enhancedHistogramRealtime}>
+                    <XAxis dataKey="intensity" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Bar dataKey="value" fill="#22C55E" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Grayscale */}
+
+              <div
+                className="
+                    bg-white
+                    p-5
+                    rounded-2xl
+                    shadow-lg
+                    border
+                    "
+              >
+                <h3
+                  className="
+                      font-bold
+                      mb-2
+                      "
+                >
+                  Grayscale Histogram
+                </h3>
+
+                <p
+                  className="
+                      mb-3
+                      "
+                >
+                  Std Dev: {stdDeviation.he}
+                </p>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={heHistogramRealtime}>
+                    <XAxis dataKey="intensity" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Bar dataKey="value" fill="#F59E0B" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {histogramData && (
+            <div
+              className="
                 mt-8
                 grid
                 grid-cols-1
                 md:grid-cols-3
                 gap-5
                 "
-              >
-
-                <div
-                  className="
+            >
+              <div
+                className="
                   bg-white
                     p-5
                     rounded-2xl
                     shadow-lg
                     border
                   "
-                >
-
-                  <h3
-                    className="
+              >
+                <h3
+                  className="
                     font-bold
                     mb-2
                     "
-                  >
-                    Original Histogram
-                  </h3>
+                >
+                  Original Histogram
+                </h3>
 
-                  <p
-                    className="
+                <p
+                  className="
                     mb-3
                     "
+                >
+                  Std Dev: {stdDeviation.original}
+                </p>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={histogramData.originalHistogram.map(
+                      (value, index) => ({
+                        intensity: index,
+                        value,
+                      }),
+                    )}
                   >
-                    Std Dev:
-                    {" "}
-                    {stdDeviation.original}
-                  </p>
+                    <XAxis dataKey="intensity" />
 
-                  <ResponsiveContainer
-                    width="100%"
-                    height={300}
-                  >
+                    <YAxis />
 
-                    <BarChart
-                      data={
-                        histogramData.originalHistogram.map(
-                          (
-                            value,
-                            index
-                          ) => ({
-                            intensity:
-                              index,
-                            value
-                          })
-                        )
-                      }
-                    >
+                    <Tooltip />
 
-                      <XAxis
-                        dataKey="intensity"
-                      />
+                    <Bar dataKey="value" fill="#3B82F6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-                      <YAxis />
-
-                      <Tooltip />
-
-                      <Bar
-                        dataKey="value"
-                        fill="#3B82F6"
-                      />
-
-                    </BarChart>
-
-                  </ResponsiveContainer>
-
-                </div>
-
-                {
-                  histogramData.enhancedHistogram && (
-
-                    <div
-                      className="
+              {histogramData.enhancedHistogram && (
+                <div
+                  className="
                       bg-white
                       p-5
                       rounded-2xl
                       shadow-lg
                       border
                       "
-                    >
-
-                      <h3
-                        className="
+                >
+                  <h3
+                    className="
                         font-bold
                         mb-2
                         "
-                      >
-                        Enhanced Histogram
-                      </h3>
+                  >
+                    Enhanced Histogram
+                  </h3>
 
-                      <p
-                        className="
+                  <p
+                    className="
                         mb-3
                         "
-                      >
-                        Std Dev:
-                        {" "}
-                        {stdDeviation.enhanced}
-                      </p>
+                  >
+                    Std Dev: {stdDeviation.enhanced}
+                  </p>
 
-                      <ResponsiveContainer
-                        width="100%"
-                        height={300}
-                      >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={histogramData.enhancedHistogram.map(
+                        (value, index) => ({
+                          intensity: index,
+                          value,
+                        }),
+                      )}
+                    >
+                      <XAxis dataKey="intensity" />
 
-                        <BarChart
-                          data={
-                            histogramData.enhancedHistogram.map(
-                              (
-                                value,
-                                index
-                              ) => ({
-                                intensity:
-                                  index,
-                                value
-                              })
-                            )
-                          }
-                        >
+                      <YAxis />
 
-                          <XAxis
-                            dataKey="intensity"
-                          />
+                      <Tooltip />
 
-                          <YAxis />
+                      <Bar dataKey="value" fill="#22C55E" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
 
-                          <Tooltip />
-
-                          <Bar
-                            dataKey="value"
-                            fill="#22C55E"
-                          />
-
-                        </BarChart>
-
-                      </ResponsiveContainer>
-
-                    </div>
-
-                  )
-                }
-
-                {
-                  histogramData.heHistogram && (
-
-                    <div
-                      className="
+              {histogramData.heHistogram && (
+                <div
+                  className="
                       bg-white
                         p-5
                         rounded-2xl
                         shadow-lg
                         border
                       "
-                    >
-
-                      <h3
-                        className="
+                >
+                  <h3
+                    className="
                         font-bold
                         mb-2
                         "
-                      >
-                        Grayscale Histogram
-                      </h3>
+                  >
+                    Grayscale Histogram
+                  </h3>
 
-                      <p
-                        className="
+                  <p
+                    className="
                         mb-3
                         "
-                      >
-                        Std Dev:
-                        {" "}
-                        {stdDeviation.he}
-                      </p>
+                  >
+                    Std Dev: {stdDeviation.he}
+                  </p>
 
-                      <ResponsiveContainer
-                        width="100%"
-                        height={300}
-                      >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={histogramData.heHistogram.map((value, index) => ({
+                        intensity: index,
+                        value,
+                      }))}
+                    >
+                      <XAxis dataKey="intensity" />
 
-                        <BarChart
-                          data={
-                            histogramData.heHistogram.map(
-                              (
-                                value,
-                                index
-                              ) => ({
-                                intensity:
-                                  index,
-                                value
-                              })
-                            )
-                          }
-                        >
+                      <YAxis />
 
-                          <XAxis
-                            dataKey="intensity"
-                          />
+                      <Tooltip />
 
-                          <YAxis />
-
-                          <Tooltip />
-
-                          <Bar
-                            dataKey="value"
-                            fill="#F59E0B"
-                          />
-
-                        </BarChart>
-
-                      </ResponsiveContainer>
-
-                    </div>
-
-                  )
-                }
-
-              </div>
-
-            )
-          }
-
-          </>
-
-        )
-      }
-
+                      <Bar dataKey="value" fill="#F59E0B" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </MainLayout>
-
   );
-
 }
 
 export default Analysis;
-
-
-
-
-
-
