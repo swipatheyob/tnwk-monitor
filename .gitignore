@@ -1,8 +1,6 @@
 # Mengabaikan semua folder node_modules di subfolder manapun
 **/node_modules/
 
-# Mengabaikan folder uploads di backend
-backend/uploads/
 
 # Mengabaikan file .env di backend maupun frontend (jika ada)
 **/.env
