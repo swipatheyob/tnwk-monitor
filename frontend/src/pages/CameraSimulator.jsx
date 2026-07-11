@@ -675,7 +675,7 @@ function CameraSimulator() {
 
     activeSourceTypeRef.current = "websocket";
 
-    const wsUrl = `ws://satwa-monitoring.psti-ubl.id/ws/viewer?mac=${cleanMac}`;
+    const wsUrl = `wss://satwa-monitoring.psti-ubl.id/ws/viewer?mac=${cleanMac}`;
     const ws = new WebSocket(wsUrl);
     ws.binaryType = "blob";
 
