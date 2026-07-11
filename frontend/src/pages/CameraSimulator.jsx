@@ -1,37 +1,23 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 
-import {
-  Bar
-} from "react-chartjs-2";
+import {Bar} from "react-chartjs-2";
 
 import {
   BarElement,
   CategoryScale,
   Chart as ChartJS,
   LinearScale,
-  Tooltip
+  Tooltip,
 } from "chart.js";
 
-import MainLayout
-  from "../layouts/MainLayout";
+import MainLayout from "../layouts/MainLayout";
 
-import {
-  uploadCapture
-} from "../services/captureService";
+import {uploadCapture} from "../services/captureService";
 
-import {
-  getDevices
-} from "../services/deviceService";
+import {getDevices} from "../services/deviceService";
 
-import {
-  getApiUrl
-} from "../config/apiConfig";
+import {getApiUrl} from "../config/apiConfig";
 
 const PROCESS_INTERVAL_MS = 150;
 const HISTOGRAM_INTERVAL_MS = 2000;
@@ -39,27 +25,17 @@ const ESP32_PROCESS_INTERVAL_MS = 300;
 const ESP32_HISTOGRAM_INTERVAL_MS = 3500;
 const AUTO_CAPTURE_INTERVAL_MS = 30000;
 const ESP_CONNECTION_TIMEOUT_MS = 10000;
-const DEFAULT_ESP32_PROXY_STREAM_URL =
-  getApiUrl("/esp32/stream");
-const EMPTY_HISTOGRAM =
-  () =>
-    Array(256).fill(0);
+const DEFAULT_ESP32_PROXY_STREAM_URL = getApiUrl("/esp32/stream");
+const EMPTY_HISTOGRAM = () => Array(256).fill(0);
 
-const HISTOGRAM_LABELS =
-  Array.from(
-    {
-      length: 256
-    },
-    (_, index) =>
-      index
-  );
-
-ChartJS.register(
-  BarElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip
+const HISTOGRAM_LABELS = Array.from(
+  {
+    length: 256,
+  },
+  (_, index) => index,
 );
+
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip);
 
 const histogramOptions = {
   animation: false,
@@ -68,1165 +44,739 @@ const histogramOptions = {
   scales: {
     x: {
       border: {
-        color: "rgba(203, 213, 225, 0.9)"
+        color: "rgba(203, 213, 225, 0.9)",
       },
       grid: {
-        color: "rgba(203, 213, 225, 0.72)"
+        color: "rgba(203, 213, 225, 0.72)",
       },
       title: {
         display: true,
         text: "Pixel Intensity (0-255)",
-        color: "#6b7280"
+        color: "#6b7280",
       },
       ticks: {
         color: "#6b7280",
         autoSkip: false,
         callback(value, index) {
-          return index % 32 === 0 || index === 255
-            ? index
-            : "";
+          return index % 32 === 0 || index === 255 ? index : "";
         },
-        maxRotation: 0
-      }
+        maxRotation: 0,
+      },
     },
     y: {
       beginAtZero: true,
       border: {
-        color: "rgba(203, 213, 225, 0.9)"
+        color: "rgba(203, 213, 225, 0.9)",
       },
       grid: {
-        color: "rgba(203, 213, 225, 0.72)"
+        color: "rgba(203, 213, 225, 0.72)",
       },
       title: {
         display: true,
         text: "Pixel Count",
-        color: "#6b7280"
+        color: "#6b7280",
       },
       ticks: {
-        color: "#6b7280"
-      }
-    }
+        color: "#6b7280",
+      },
+    },
   },
   plugins: {
     legend: {
-      display: false
-    }
-  }
+      display: false,
+    },
+  },
 };
 
-function calculateStandardDeviation(
-  sum,
-  squaredSum,
-  pixelCount
-) {
-
+function calculateStandardDeviation(sum, squaredSum, pixelCount) {
   if (pixelCount === 0) {
     return 0;
   }
 
-  const mean =
-    sum / pixelCount;
+  const mean = sum / pixelCount;
 
-  const variance =
-    Math.max(
-      0,
-      (squaredSum / pixelCount) -
-        (mean * mean)
-    );
+  const variance = Math.max(0, squaredSum / pixelCount - mean * mean);
 
-  return Math.sqrt(
-    variance
-  );
-
+  return Math.sqrt(variance);
 }
 
-function getSourceSize(
-  source
-) {
-
+function getSourceSize(source) {
   if (source instanceof HTMLVideoElement) {
     return {
-      height:
-        source.videoHeight,
-      width:
-        source.videoWidth
+      height: source.videoHeight,
+      width: source.videoWidth,
     };
   }
 
   return {
-    height:
-      source?.naturalHeight || 0,
-    width:
-      source?.naturalWidth || 0
+    height: source?.naturalHeight || 0,
+    width: source?.naturalWidth || 0,
   };
-
 }
 
 function CameraSimulator() {
+  const videoRef = useRef(null);
 
-  const videoRef =
-    useRef(null);
+  const espImageRef = useRef(null);
 
-  const espImageRef =
-    useRef(null);
+  const wsImageRef = useRef(null);
 
-  const captureCanvasRef =
-    useRef(null);
+  const captureCanvasRef = useRef(null);
 
-  const enhancedCanvasRef =
-    useRef(null);
+  const enhancedCanvasRef = useRef(null);
 
-  const histogramCanvasRef =
-    useRef(null);
+  const histogramCanvasRef = useRef(null);
 
-  const autoCaptureIntervalRef =
-    useRef(null);
+  const autoCaptureIntervalRef = useRef(null);
 
-  const processIntervalRef =
-    useRef(null);
+  const processIntervalRef = useRef(null);
 
-  const histogramIntervalRef =
-    useRef(null);
+  const histogramIntervalRef = useRef(null);
 
-  const espReadyIntervalRef =
-    useRef(null);
+  const espReadyIntervalRef = useRef(null);
 
-  const espTimeoutRef =
-    useRef(null);
+  const espTimeoutRef = useRef(null);
 
-  const rafIdRef =
-    useRef(null);
+  const rafIdRef = useRef(null);
 
-  const lastProcessTimeRef =
-    useRef(0);
+  const wsRef = useRef(null);
 
-  const cameraActiveRef =
-    useRef(false);
+  const wsPrevUrlRef = useRef(null);
 
-  const activeSourceTypeRef =
-    useRef("webcam");
+  const lastProcessTimeRef = useRef(0);
 
-  const selectedDeviceIdRef =
-    useRef("");
+  const cameraActiveRef = useRef(false);
 
-  const [
-    cameraSource,
-    setCameraSource
-  ] = useState("webcam");
+  const activeSourceTypeRef = useRef("webcam");
 
-  const [
-    devices,
-    setDevices
-  ] = useState([]);
+  const selectedDeviceIdRef = useRef("");
 
-  const [
-    selectedDeviceId,
-    setSelectedDeviceId
-  ] = useState("");
+  const [cameraSource, setCameraSource] = useState("webcam");
 
-  const [
-    espStreamUrl,
-    setEspStreamUrl
-  ] = useState(
-    DEFAULT_ESP32_PROXY_STREAM_URL
+  const [devices, setDevices] = useState([]);
+
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+
+  const [espStreamUrl, setEspStreamUrl] = useState(
+    DEFAULT_ESP32_PROXY_STREAM_URL,
   );
 
-  const [
-    connectedEspUrl,
-    setConnectedEspUrl
-  ] = useState("");
+  const [connectedEspUrl, setConnectedEspUrl] = useState("");
 
-  const [
-    running,
-    setRunning
-  ] = useState(false);
+  const [wsCameraFrame, setWsCameraFrame] = useState(null);
 
-  const [
-    status,
-    setStatus
-  ] = useState(
-    "Camera not started"
+  const [running, setRunning] = useState(false);
+
+  const [status, setStatus] = useState("Camera not started");
+
+  const [originalStandardDeviation, setOriginalStandardDeviation] = useState(0);
+
+  const [enhancedStandardDeviation, setEnhancedStandardDeviation] = useState(0);
+
+  const [originalHistogram, setOriginalHistogram] = useState(EMPTY_HISTOGRAM);
+
+  const [enhancedHistogram, setEnhancedHistogram] = useState(EMPTY_HISTOGRAM);
+
+  const originalHistogramData = useMemo(
+    () => ({
+      labels: HISTOGRAM_LABELS,
+      datasets: [
+        {
+          backgroundColor: "rgba(59, 130, 246, 0.78)",
+          borderWidth: 0,
+          data: originalHistogram,
+        },
+      ],
+    }),
+    [originalHistogram],
   );
 
-  const [
-    originalStandardDeviation,
-    setOriginalStandardDeviation
-  ] = useState(0);
-
-  const [
-    enhancedStandardDeviation,
-    setEnhancedStandardDeviation
-  ] = useState(0);
-
-  const [
-    originalHistogram,
-    setOriginalHistogram
-  ] = useState(
-    EMPTY_HISTOGRAM
+  const enhancedHistogramData = useMemo(
+    () => ({
+      labels: HISTOGRAM_LABELS,
+      datasets: [
+        {
+          backgroundColor: "rgba(34, 197, 94, 0.78)",
+          borderWidth: 0,
+          data: enhancedHistogram,
+        },
+      ],
+    }),
+    [enhancedHistogram],
   );
 
-  const [
-    enhancedHistogram,
-    setEnhancedHistogram
-  ] = useState(
-    EMPTY_HISTOGRAM
-  );
+  const getActiveFrameSource = useCallback(() => {
+    if (activeSourceTypeRef.current === "esp32") {
+      return espImageRef.current;
+    }
+    if (activeSourceTypeRef.current === "websocket") {
+      return wsImageRef.current;
+    }
 
-  const originalHistogramData =
-    useMemo(
-      () => ({
-        labels:
-          HISTOGRAM_LABELS,
-        datasets: [
-          {
-            backgroundColor:
-              "rgba(59, 130, 246, 0.78)",
-            borderWidth: 0,
-            data:
-              originalHistogram
-          }
-        ]
-      }),
-      [
-        originalHistogram
-      ]
-    );
+    return videoRef.current;
+  }, []);
 
-  const enhancedHistogramData =
-    useMemo(
-      () => ({
-        labels:
-          HISTOGRAM_LABELS,
-        datasets: [
-          {
-            backgroundColor:
-              "rgba(34, 197, 94, 0.78)",
-            borderWidth: 0,
-            data:
-              enhancedHistogram
-          }
-        ]
-      }),
-      [
-        enhancedHistogram
-      ]
-    );
+  const clearIntervals = useCallback(() => {
+    clearInterval(autoCaptureIntervalRef.current);
 
-  const getActiveFrameSource =
-    useCallback(() => {
+    clearInterval(processIntervalRef.current);
 
-      if (
-        activeSourceTypeRef.current ===
-        "esp32"
-      ) {
-        return espImageRef.current;
-      }
+    clearInterval(histogramIntervalRef.current);
 
-      return videoRef.current;
+    clearInterval(espReadyIntervalRef.current);
 
-    }, []);
+    clearTimeout(espTimeoutRef.current);
 
-  const clearIntervals =
-    useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
 
-      clearInterval(
-        autoCaptureIntervalRef.current
-      );
+    autoCaptureIntervalRef.current = null;
 
-      clearInterval(
-        processIntervalRef.current
-      );
+    processIntervalRef.current = null;
 
-      clearInterval(
-        histogramIntervalRef.current
-      );
+    histogramIntervalRef.current = null;
 
-      clearInterval(
-        espReadyIntervalRef.current
-      );
+    espReadyIntervalRef.current = null;
 
-      clearTimeout(
-        espTimeoutRef.current
-      );
+    espTimeoutRef.current = null;
 
-      if (rafIdRef.current) {
-        cancelAnimationFrame(
-          rafIdRef.current
-        );
-      }
+    rafIdRef.current = null;
 
-      autoCaptureIntervalRef.current =
-        null;
+    lastProcessTimeRef.current = 0;
+  }, []);
 
-      processIntervalRef.current =
-        null;
+  const stopMediaStream = useCallback(() => {
+    const video = videoRef.current;
 
-      histogramIntervalRef.current =
-        null;
+    if (!video?.srcObject) {
+      return;
+    }
 
-      espReadyIntervalRef.current =
-        null;
+    video.srcObject.getTracks().forEach((track) => track.stop());
 
-      espTimeoutRef.current =
-        null;
+    video.srcObject = null;
+  }, []);
 
-      rafIdRef.current =
-        null;
+  const resetMetrics = useCallback(() => {
+    setOriginalStandardDeviation(0);
 
-      lastProcessTimeRef.current =
-        0;
+    setEnhancedStandardDeviation(0);
 
-    }, []);
+    setOriginalHistogram(EMPTY_HISTOGRAM());
 
-  const stopMediaStream =
-    useCallback(() => {
+    setEnhancedHistogram(EMPTY_HISTOGRAM());
 
-      const video =
-        videoRef.current;
+    const enhancedCanvas = enhancedCanvasRef.current;
 
-      if (!video?.srcObject) {
+    if (enhancedCanvas) {
+      enhancedCanvas
+        .getContext("2d")
+        .clearRect(0, 0, enhancedCanvas.width, enhancedCanvas.height);
+    }
+  }, []);
+
+  const captureAndUpload = useCallback(async () => {
+    try {
+      if (!cameraActiveRef.current) {
         return;
       }
 
-      video.srcObject
-        .getTracks()
-        .forEach(
-          track =>
-            track.stop()
-        );
+      if (!selectedDeviceIdRef.current) {
+        setStatus("Pilih device sebelum mengambil capture");
 
-      video.srcObject =
-        null;
-
-    }, []);
-
-  const resetMetrics =
-    useCallback(() => {
-
-      setOriginalStandardDeviation(
-        0
-      );
-
-      setEnhancedStandardDeviation(
-        0
-      );
-
-      setOriginalHistogram(
-        EMPTY_HISTOGRAM()
-      );
-
-      setEnhancedHistogram(
-        EMPTY_HISTOGRAM()
-      );
-
-      const enhancedCanvas =
-        enhancedCanvasRef.current;
-
-      if (enhancedCanvas) {
-
-        enhancedCanvas
-          .getContext("2d")
-          .clearRect(
-            0,
-            0,
-            enhancedCanvas.width,
-            enhancedCanvas.height
-          );
-
+        return;
       }
 
-    }, []);
+      const source = getActiveFrameSource();
 
-  const captureAndUpload =
-    useCallback(async () => {
+      const canvas = captureCanvasRef.current;
 
+      const {height, width} = getSourceSize(source);
+
+      if (!source || !canvas || width === 0 || height === 0) {
+        return;
+      }
+
+      canvas.width = width;
+
+      canvas.height = height;
+
+      canvas.getContext("2d").drawImage(source, 0, 0, width, height);
+
+      const blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg"),
+      );
+
+      if (!blob) {
+        throw new Error("Failed to create capture image");
+      }
+
+      const formData = new FormData();
+
+      formData.append("image", blob, `${Date.now()}.jpg`);
+
+      formData.append("deviceId", selectedDeviceIdRef.current);
+
+      formData.append(
+        "source",
+        activeSourceTypeRef.current === "esp32"
+          ? "esp32cam"
+          : activeSourceTypeRef.current === "websocket"
+            ? "websocket"
+            : "webcam",
+      );
+
+      await uploadCapture(formData);
+
+      if (cameraActiveRef.current) {
+        setStatus(`Capture uploaded: ${new Date().toLocaleTimeString()}`);
+      }
+    } catch (error) {
+      console.log(error);
+
+      if (cameraActiveRef.current) {
+        setStatus(
+          activeSourceTypeRef.current === "esp32"
+            ? "ESP32-CAM processing failed. Check the backend proxy."
+            : "Upload failed",
+        );
+      }
+    }
+  }, [getActiveFrameSource]);
+
+  const processRealtime = useCallback(() => {
+    clearInterval(processIntervalRef.current);
+
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    const interval =
+      activeSourceTypeRef.current === "esp32" ||
+      activeSourceTypeRef.current === "websocket"
+        ? ESP32_PROCESS_INTERVAL_MS
+        : PROCESS_INTERVAL_MS;
+
+    processIntervalRef.current = setInterval(() => {
       try {
+        const source = getActiveFrameSource();
 
-        if (!cameraActiveRef.current) {
+        const canvas = enhancedCanvasRef.current;
+
+        const {height, width} = getSourceSize(source);
+
+        if (!source || !canvas || width === 0 || height === 0) {
           return;
         }
 
-        if (!selectedDeviceIdRef.current) {
-          setStatus(
-            "Pilih device sebelum mengambil capture"
-          );
+        canvas.width = width;
 
-          return;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d", {
+          willReadFrequently: true,
+        });
+
+        ctx.drawImage(source, 0, 0, width, height);
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+
+        const data = imageData.data;
+
+        let originalSum = 0;
+        let originalSquaredSum = 0;
+        let enhancedSum = 0;
+        let enhancedSquaredSum = 0;
+
+        const pixelCount = data.length / 4;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+
+          originalSum += gray;
+
+          originalSquaredSum += gray * gray;
+
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+
+          r += 20;
+          g += 20;
+          b += 20;
+
+          const contrast = 1.25;
+
+          r = (r - 128) * contrast + 128;
+
+          g = (g - 128) * contrast + 128;
+
+          b = (b - 128) * contrast + 128;
+
+          const avg = (r + g + b) / 3;
+
+          const saturation = 1.15;
+
+          r = avg + (r - avg) * saturation;
+
+          g = avg + (g - avg) * saturation;
+
+          b = avg + (b - avg) * saturation;
+
+          r = Math.max(0, Math.min(255, r));
+
+          g = Math.max(0, Math.min(255, g));
+
+          b = Math.max(0, Math.min(255, b));
+
+          data[i] = r;
+          data[i + 1] = g;
+          data[i + 2] = b;
+
+          const enhancedGray = (r + g + b) / 3;
+
+          enhancedSum += enhancedGray;
+
+          enhancedSquaredSum += enhancedGray * enhancedGray;
         }
 
-        const source =
-          getActiveFrameSource();
+        ctx.putImageData(imageData, 0, 0);
 
-        const canvas =
-          captureCanvasRef.current;
+        setOriginalStandardDeviation(
+          calculateStandardDeviation(
+            originalSum,
+            originalSquaredSum,
+            pixelCount,
+          ),
+        );
 
-        const {
-          height,
-          width
-        } = getSourceSize(source);
+        setEnhancedStandardDeviation(
+          calculateStandardDeviation(
+            enhancedSum,
+            enhancedSquaredSum,
+            pixelCount,
+          ),
+        );
+      } catch (error) {
+        console.log(error);
+
+        clearInterval(processIntervalRef.current);
+
+        setStatus(
+          activeSourceTypeRef.current === "websocket"
+            ? "WebSocket frame processing failed."
+            : "ESP32-CAM processing failed. Check the backend proxy.",
+        );
+      }
+    }, interval);
+  }, [getActiveFrameSource]);
+
+  const processHistograms = useCallback(() => {
+    clearInterval(histogramIntervalRef.current);
+
+    const interval =
+      activeSourceTypeRef.current === "esp32" ||
+      activeSourceTypeRef.current === "websocket"
+        ? ESP32_HISTOGRAM_INTERVAL_MS
+        : HISTOGRAM_INTERVAL_MS;
+
+    histogramIntervalRef.current = setInterval(() => {
+      try {
+        const source = getActiveFrameSource();
+
+        const originalCanvas = histogramCanvasRef.current;
+
+        const enhancedCanvas = enhancedCanvasRef.current;
+
+        const {height, width} = getSourceSize(source);
 
         if (
           !source ||
-          !canvas ||
+          !originalCanvas ||
+          !enhancedCanvas ||
           width === 0 ||
-          height === 0
+          height === 0 ||
+          enhancedCanvas.width === 0
         ) {
           return;
         }
 
-        canvas.width =
-          width;
+        originalCanvas.width = width;
 
-        canvas.height =
-          height;
+        originalCanvas.height = height;
 
-        canvas
-          .getContext("2d")
-          .drawImage(
-            source,
-            0,
-            0,
-            width,
-            height
+        const originalCtx = originalCanvas.getContext("2d", {
+          willReadFrequently: true,
+        });
+
+        originalCtx.drawImage(source, 0, 0, width, height);
+
+        const originalData = originalCtx.getImageData(0, 0, width, height).data;
+
+        const enhancedData = enhancedCanvas
+          .getContext("2d", {
+            willReadFrequently: true,
+          })
+          .getImageData(0, 0, enhancedCanvas.width, enhancedCanvas.height).data;
+
+        const nextOriginalHistogram = EMPTY_HISTOGRAM();
+
+        const nextEnhancedHistogram = EMPTY_HISTOGRAM();
+
+        for (let i = 0; i < originalData.length; i += 4) {
+          const gray = Math.round(
+            (originalData[i] + originalData[i + 1] + originalData[i + 2]) / 3,
           );
 
-        const blob =
-          await new Promise(
-            resolve =>
-              canvas.toBlob(
-                resolve,
-                "image/jpeg"
-              )
-          );
-
-        if (!blob) {
-          throw new Error(
-            "Failed to create capture image"
-          );
+          nextOriginalHistogram[gray] += 1;
         }
 
-        const formData =
-          new FormData();
-
-        formData.append(
-          "image",
-          blob,
-          `${Date.now()}.jpg`
-        );
-
-        formData.append(
-          "deviceId",
-          selectedDeviceIdRef.current
-        );
-
-        formData.append(
-          "source",
-          activeSourceTypeRef.current ===
-            "esp32"
-            ? "esp32cam"
-            : "webcam"
-        );
-
-        await uploadCapture(
-          formData
-        );
-
-        if (cameraActiveRef.current) {
-
-          setStatus(
-            `Capture uploaded: ${new Date().toLocaleTimeString()}`
+        for (let i = 0; i < enhancedData.length; i += 4) {
+          const gray = Math.round(
+            (enhancedData[i] + enhancedData[i + 1] + enhancedData[i + 2]) / 3,
           );
 
+          nextEnhancedHistogram[gray] += 1;
         }
 
+        setOriginalHistogram(nextOriginalHistogram);
+
+        setEnhancedHistogram(nextEnhancedHistogram);
       } catch (error) {
+        console.log(error);
 
-        console.log(
-          error
-        );
-
-        if (cameraActiveRef.current) {
-
-          setStatus(
-            activeSourceTypeRef.current ===
-              "esp32"
-              ? "ESP32-CAM processing failed. Check the backend proxy."
-              : "Upload failed"
-          );
-
-        }
-
+        clearInterval(histogramIntervalRef.current);
       }
+    }, interval);
+  }, [getActiveFrameSource]);
 
-    }, [
-      getActiveFrameSource
-    ]);
+  const startProcessing = useCallback(
+    (sourceType) => {
+      activeSourceTypeRef.current = sourceType;
 
-  const processRealtime =
-    useCallback(() => {
-
-      clearInterval(
-        processIntervalRef.current
-      );
-
-      if (rafIdRef.current) {
-        cancelAnimationFrame(
-          rafIdRef.current
-        );
-      }
-
-      const interval =
-        activeSourceTypeRef.current ===
-          "esp32"
-          ? ESP32_PROCESS_INTERVAL_MS
-          : PROCESS_INTERVAL_MS;
-
-      processIntervalRef.current =
-        setInterval(() => {
-
-          try {
-
-            const source =
-              getActiveFrameSource();
-
-            const canvas =
-              enhancedCanvasRef.current;
-
-            const {
-              height,
-              width
-            } = getSourceSize(source);
-
-              if (
-                !source ||
-                !canvas ||
-                width === 0 ||
-                height === 0
-              ) {
-                return;
-              }
-
-              canvas.width =
-                width;
-
-              canvas.height =
-                height;
-
-              const ctx =
-                canvas.getContext(
-                  "2d",
-                  {
-                    willReadFrequently:
-                      true
-                  }
-                );
-
-              ctx.drawImage(
-                source,
-                0,
-                0,
-                width,
-                height
-              );
-
-              const imageData =
-                ctx.getImageData(
-                  0,
-                  0,
-                  width,
-                  height
-                );
-
-              const data =
-                imageData.data;
-
-              let originalSum = 0;
-              let originalSquaredSum = 0;
-              let enhancedSum = 0;
-              let enhancedSquaredSum = 0;
-
-              const pixelCount =
-                data.length / 4;
-
-              for (
-                let i = 0;
-                i < data.length;
-                i += 4
-              ) {
-
-                const gray =
-                (
-                  data[i] +
-                  data[i + 1] +
-                  data[i + 2]
-                ) / 3;
-
-                originalSum += gray;
-
-                originalSquaredSum +=
-                  gray * gray;
-
-                let r = data[i];
-                let g = data[i + 1];
-                let b = data[i + 2];
-
-                r += 20;
-                g += 20;
-                b += 20;
-
-                const contrast = 1.25;
-
-                r =
-                  ((r - 128) * contrast) +
-                  128;
-
-                g =
-                  ((g - 128) * contrast) +
-                  128;
-
-                b =
-                  ((b - 128) * contrast) +
-                  128;
-
-                const avg =
-                  (r + g + b) / 3;
-
-                const saturation = 1.15;
-
-                r =
-                  avg +
-                  (r - avg) *
-                  saturation;
-
-                g =
-                  avg +
-                  (g - avg) *
-                  saturation;
-
-                b =
-                  avg +
-                  (b - avg) *
-                  saturation;
-
-                r =
-                  Math.max(
-                    0,
-                    Math.min(
-                      255,
-                      r
-                    )
-                  );
-
-                g =
-                  Math.max(
-                    0,
-                    Math.min(
-                      255,
-                      g
-                    )
-                  );
-
-                b =
-                  Math.max(
-                    0,
-                    Math.min(
-                      255,
-                      b
-                    )
-                  );
-
-                data[i] = r;
-                data[i + 1] = g;
-                data[i + 2] = b;
-
-                const enhancedGray =
-                  (
-                    r +
-                    g +
-                    b
-                  ) / 3;
-
-                enhancedSum +=
-                  enhancedGray;
-
-                enhancedSquaredSum +=
-                  enhancedGray *
-                  enhancedGray;
-
-              }
-
-              ctx.putImageData(
-                imageData,
-                0,
-                0
-              );
-
-              setOriginalStandardDeviation(
-                calculateStandardDeviation(
-                  originalSum,
-                  originalSquaredSum,
-                  pixelCount
-                )
-              );
-
-              setEnhancedStandardDeviation(
-                calculateStandardDeviation(
-                  enhancedSum,
-                  enhancedSquaredSum,
-                  pixelCount
-                )
-              );
-
-            } catch (error) {
-
-              console.log(
-                error
-              );
-
-              clearInterval(
-                processIntervalRef.current
-              );
-
-              setStatus(
-                "ESP32-CAM processing failed. Check the backend proxy."
-              );
-
-            }
-
-          }, interval);
-
-    }, [
-      getActiveFrameSource
-    ]);
-
-  const processHistograms =
-    useCallback(() => {
-
-      clearInterval(
-        histogramIntervalRef.current
-      );
-
-      const interval =
-        activeSourceTypeRef.current ===
-          "esp32"
-          ? ESP32_HISTOGRAM_INTERVAL_MS
-          : HISTOGRAM_INTERVAL_MS;
-
-      histogramIntervalRef.current =
-        setInterval(() => {
-
-          try {
-
-            const source =
-              getActiveFrameSource();
-
-            const originalCanvas =
-              histogramCanvasRef.current;
-
-            const enhancedCanvas =
-              enhancedCanvasRef.current;
-
-            const {
-              height,
-              width
-            } = getSourceSize(source);
-
-            if (
-              !source ||
-              !originalCanvas ||
-              !enhancedCanvas ||
-              width === 0 ||
-              height === 0 ||
-              enhancedCanvas.width === 0
-            ) {
-              return;
-            }
-
-            originalCanvas.width =
-              width;
-
-            originalCanvas.height =
-              height;
-
-            const originalCtx =
-              originalCanvas.getContext(
-                "2d",
-                {
-                  willReadFrequently:
-                    true
-                }
-              );
-
-            originalCtx.drawImage(
-              source,
-              0,
-              0,
-              width,
-              height
-            );
-
-            const originalData =
-              originalCtx.getImageData(
-                0,
-                0,
-                width,
-                height
-              ).data;
-
-            const enhancedData =
-              enhancedCanvas
-                .getContext(
-                  "2d",
-                  {
-                    willReadFrequently:
-                      true
-                  }
-                )
-                .getImageData(
-                  0,
-                  0,
-                  enhancedCanvas.width,
-                  enhancedCanvas.height
-                ).data;
-
-            const nextOriginalHistogram =
-              EMPTY_HISTOGRAM();
-
-            const nextEnhancedHistogram =
-              EMPTY_HISTOGRAM();
-
-            for (
-              let i = 0;
-              i < originalData.length;
-              i += 4
-            ) {
-
-              const gray =
-                Math.round(
-                  (
-                    originalData[i] +
-                    originalData[i + 1] +
-                    originalData[i + 2]
-                  ) / 3
-                );
-
-              nextOriginalHistogram[gray] +=
-                1;
-
-            }
-
-            for (
-              let i = 0;
-              i < enhancedData.length;
-              i += 4
-            ) {
-
-              const gray =
-                Math.round(
-                  (
-                    enhancedData[i] +
-                    enhancedData[i + 1] +
-                    enhancedData[i + 2]
-                  ) / 3
-                );
-
-              nextEnhancedHistogram[gray] +=
-                1;
-
-            }
-
-            setOriginalHistogram(
-              nextOriginalHistogram
-            );
-
-            setEnhancedHistogram(
-              nextEnhancedHistogram
-            );
-
-          } catch (error) {
-
-            console.log(
-              error
-            );
-
-            clearInterval(
-              histogramIntervalRef.current
-            );
-
-          }
-
-        }, interval);
-
-    }, [
-      getActiveFrameSource
-    ]);
-
-  const startProcessing =
-    useCallback((
-      sourceType
-    ) => {
-
-      activeSourceTypeRef.current =
-        sourceType;
-
-      cameraActiveRef.current =
-        true;
+      cameraActiveRef.current = true;
 
       processRealtime();
       processHistograms();
 
-      autoCaptureIntervalRef.current =
-        setInterval(
-          captureAndUpload,
-          AUTO_CAPTURE_INTERVAL_MS
-        );
+      autoCaptureIntervalRef.current = setInterval(
+        captureAndUpload,
+        AUTO_CAPTURE_INTERVAL_MS,
+      );
 
       captureAndUpload();
 
-      setRunning(
-        true
-      );
+      setRunning(true);
+    },
+    [captureAndUpload, processHistograms, processRealtime],
+  );
 
-    }, [
-      captureAndUpload,
-      processHistograms,
-      processRealtime
-    ]);
-
-  const stopCamera =
-    useCallback((
-      nextStatus = "Camera stopped"
-    ) => {
-
-      cameraActiveRef.current =
-        false;
+  const stopCamera = useCallback(
+    (nextStatus = "Camera stopped") => {
+      cameraActiveRef.current = false;
 
       clearIntervals();
       stopMediaStream();
       setConnectedEspUrl("");
+
+      // Cleanup WebSocket
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (wsPrevUrlRef.current) {
+        URL.revokeObjectURL(wsPrevUrlRef.current);
+        wsPrevUrlRef.current = null;
+      }
+      setWsCameraFrame(null);
+
       resetMetrics();
 
-      setRunning(
-        false
-      );
+      setRunning(false);
 
-      setStatus(
-        nextStatus
-      );
+      setStatus(nextStatus);
+    },
+    [clearIntervals, resetMetrics, stopMediaStream],
+  );
 
-    }, [
-      clearIntervals,
-      resetMetrics,
-      stopMediaStream
-    ]);
+  const startCamera = async () => {
+    if (!selectedDeviceIdRef.current) {
+      setStatus("Pilih device sebelum memulai kamera");
 
-  const startCamera =
-    async () => {
+      return;
+    }
 
-      if (!selectedDeviceIdRef.current) {
-        setStatus(
-          "Pilih device sebelum memulai kamera"
-        );
+    try {
+      stopCamera("Connecting to webcam...");
+
+      activeSourceTypeRef.current = "webcam";
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+
+      const video = videoRef.current;
+
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
 
         return;
       }
 
-      try {
+      video.srcObject = stream;
 
-        stopCamera(
-          "Connecting to webcam..."
-        );
+      await video.play();
 
-        activeSourceTypeRef.current =
-          "webcam";
+      startProcessing("webcam");
 
-        const stream =
-          await navigator
-            .mediaDevices
-            .getUserMedia({
-              video: true
-            });
+      setStatus("Webcam connected - auto capture every 30 seconds");
+    } catch (error) {
+      console.log(error);
 
-        const video =
-          videoRef.current;
+      stopCamera("Failed to access webcam");
+    }
+  };
 
-        if (!video) {
+  const connectEspCamera = () => {
+    if (!selectedDeviceIdRef.current) {
+      setStatus("Pilih device sebelum menghubungkan ESP32-CAM");
 
-          stream
-            .getTracks()
-            .forEach(
-              track =>
-                track.stop()
-            );
+      return;
+    }
 
-          return;
+    stopCamera("Connecting to ESP32-CAM...");
 
+    activeSourceTypeRef.current = "esp32";
+
+    setConnectedEspUrl(`${espStreamUrl}?t=${Date.now()}`);
+
+    espTimeoutRef.current = setTimeout(() => {
+      if (!cameraActiveRef.current) {
+        stopCamera("Failed to connect to ESP32-CAM");
+      }
+    }, ESP_CONNECTION_TIMEOUT_MS);
+  };
+
+  const connectWebSocket = () => {
+    if (!selectedDeviceIdRef.current) {
+      setStatus("Pilih device sebelum menghubungkan WebSocket");
+      return;
+    }
+
+    // Ambil data mac address dari device terpilih. Default dummy fallback.
+    const selectedDevice = devices.find(
+      (d) => d._id === selectedDeviceIdRef.current,
+    );
+    const macAddress = selectedDevice?.macAddress || "A4:F0:0F:74:EC:20";
+    const cleanMac = macAddress.replace(/:/g, "");
+
+    stopCamera("Connecting to WebSocket...");
+
+    activeSourceTypeRef.current = "websocket";
+
+    const wsUrl = `ws://195.35.23.135:5093/ws/viewer?mac=${cleanMac}`;
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = "blob";
+
+    ws.onopen = () => {
+      console.log(`✅ Connected to Camera Stream WebSocket [MAC: ${cleanMac}]`);
+    };
+
+    ws.onmessage = (event) => {
+      if (event.data instanceof Blob) {
+        if (wsPrevUrlRef.current) {
+          URL.revokeObjectURL(wsPrevUrlRef.current);
         }
+        const newFrameUrl = URL.createObjectURL(event.data);
+        setWsCameraFrame(newFrameUrl);
+        wsPrevUrlRef.current = newFrameUrl;
 
-        video.srcObject =
-          stream;
-
-        await video.play();
-
-        startProcessing(
-          "webcam"
-        );
-
-        setStatus(
-          "Webcam connected - auto capture every 30 seconds"
-        );
-
-      } catch (error) {
-
-        console.log(
-          error
-        );
-
-        stopCamera(
-          "Failed to access webcam"
-        );
-
+        // Auto start processing if not running yet
+        if (
+          !cameraActiveRef.current &&
+          activeSourceTypeRef.current === "websocket"
+        ) {
+          startProcessing("websocket");
+          setStatus("Connected to WebSocket Stream");
+        }
       }
-
     };
 
-  const connectEspCamera =
-    () => {
-
-      if (!selectedDeviceIdRef.current) {
-        setStatus(
-          "Pilih device sebelum menghubungkan ESP32-CAM"
-        );
-
-        return;
+    ws.onclose = () => {
+      if (activeSourceTypeRef.current === "websocket") {
+        stopCamera("WebSocket disconnected");
       }
-
-      stopCamera(
-        "Connecting to ESP32-CAM..."
-      );
-
-      activeSourceTypeRef.current =
-        "esp32";
-
-      setConnectedEspUrl(
-        `${espStreamUrl}?t=${Date.now()}`
-      );
-
-      espTimeoutRef.current =
-        setTimeout(() => {
-
-          if (!cameraActiveRef.current) {
-
-            stopCamera(
-              "Failed to connect to ESP32-CAM"
-            );
-
-          }
-
-        }, ESP_CONNECTION_TIMEOUT_MS);
-
     };
 
-  const handleSourceChange =
-    event => {
+    wsRef.current = ws;
+  };
 
-      const nextSource =
-        event.target.value;
+  const handleSourceChange = (event) => {
+    const nextSource = event.target.value;
 
-      stopCamera(
-        nextSource === "webcam"
-          ? "Webcam selected"
-          : "ESP32-CAM proxy selected"
-      );
+    stopCamera(
+      nextSource === "webcam"
+        ? "Webcam selected"
+        : nextSource === "websocket"
+          ? "WebSocket Stream selected"
+          : "ESP32-CAM proxy selected",
+    );
 
-      activeSourceTypeRef.current =
-        nextSource;
+    activeSourceTypeRef.current = nextSource;
 
-      setCameraSource(
-        nextSource
-      );
-
-    };
+    setCameraSource(nextSource);
+  };
 
   useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const data = await getDevices();
 
-    const loadDevices =
-      async () => {
+        setDevices(data);
 
-        try {
+        if (data.length > 0 && !selectedDeviceIdRef.current) {
+          selectedDeviceIdRef.current = data[0]._id;
 
-          const data =
-            await getDevices();
-
-          setDevices(
-            data
-          );
-
-          if (
-            data.length > 0 &&
-            !selectedDeviceIdRef.current
-          ) {
-            selectedDeviceIdRef.current =
-              data[0]._id;
-
-            setSelectedDeviceId(
-              data[0]._id
-            );
-          }
-
-        } catch (error) {
-
-          console.log(
-            error
-          );
-
-          setStatus(
-            "Failed to load devices"
-          );
-
+          setSelectedDeviceId(data[0]._id);
         }
+      } catch (error) {
+        console.log(error);
 
-      };
+        setStatus("Failed to load devices");
+      }
+    };
 
     loadDevices();
-
   }, []);
 
   useEffect(() => {
-
     return () => {
-
-      cameraActiveRef.current =
-        false;
+      cameraActiveRef.current = false;
 
       clearIntervals();
       stopMediaStream();
 
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (wsPrevUrlRef.current) {
+        URL.revokeObjectURL(wsPrevUrlRef.current);
+      }
     };
-
-  }, [
-    clearIntervals,
-    stopMediaStream
-  ]);
+  }, [clearIntervals, stopMediaStream]);
 
   return (
-
     <MainLayout>
-
       <div className="mb-8">
+        <span className="page-kicker">Realtime Vision Control</span>
 
-        <span className="page-kicker">
-          Realtime Vision Control
-        </span>
-
-        <h1 className="page-title">
-          Live Camera Intelligence
-        </h1>
+        <h1 className="page-title">Live Camera Intelligence</h1>
 
         <p className="page-description">
-          Simulasi perangkat monitoring satwa menggunakan Webcam dan ESP32-CAM secara realtime.
+          Simulasi perangkat monitoring satwa menggunakan Webcam dan ESP32-CAM
+          secara realtime.
         </p>
-
       </div>
 
       <div
@@ -1242,7 +792,6 @@ function CameraSimulator() {
         hover:shadow-[0_22px_55px_rgba(15,118,110,0.12)]
         "
       >
-
         <label
           className="
           block
@@ -1256,22 +805,14 @@ function CameraSimulator() {
 
         <select
           id="captureDevice"
-          value={
-            selectedDeviceId
-          }
-          onChange={
-            event => {
-              const deviceId =
-                event.target.value;
+          value={selectedDeviceId}
+          onChange={(event) => {
+            const deviceId = event.target.value;
 
-              selectedDeviceIdRef.current =
-                deviceId;
+            selectedDeviceIdRef.current = deviceId;
 
-              setSelectedDeviceId(
-                deviceId
-              );
-            }
-          }
+            setSelectedDeviceId(deviceId);
+          }}
           disabled={running}
           className="
           w-full
@@ -1286,27 +827,12 @@ function CameraSimulator() {
           disabled:opacity-50
           "
         >
-          <option value="">
-            Select Device
-          </option>
-          {
-            devices.map(
-              device => (
-                <option
-                  key={
-                    device._id
-                  }
-                  value={
-                    device._id
-                  }
-                >
-                  {
-                    device.deviceName
-                  }
-                </option>
-              )
-            )
-          }
+          <option value="">Select Device</option>
+          {devices.map((device) => (
+            <option key={device._id} value={device._id}>
+              {device.deviceName}
+            </option>
+          ))}
         </select>
 
         <label
@@ -1323,9 +849,7 @@ function CameraSimulator() {
         <select
           id="cameraSource"
           value={cameraSource}
-          onChange={
-            handleSourceChange
-          }
+          onChange={handleSourceChange}
           className="
           w-full
           max-w-md
@@ -1337,49 +861,42 @@ function CameraSimulator() {
           py-2
           "
         >
-          <option value="webcam">
-            Webcam Laptop
-          </option>
-          <option value="esp32">
-            ESP32-CAM
-          </option>
+          <option value="webcam">Webcam Laptop</option>
+          <option value="esp32">ESP32-CAM</option>
+          <option value="websocket">Live WebSocket CCTV</option>
         </select>
 
-        {
-          cameraSource === "esp32" && (
-
-            <div
-              className="
+        {cameraSource === "esp32" && (
+          <div
+            className="
               mt-4
               "
-            >
-
-              <label
-                className="
+          >
+            <label
+              className="
                 block
                 font-semibold
                 mb-2
                 "
-                htmlFor="espStreamUrl"
-              >
-                ESP32-CAM Proxy Stream:
-              </label>
+              htmlFor="espStreamUrl"
+            >
+              ESP32-CAM Proxy Stream:
+            </label>
 
-              <div
-                className="
+            <div
+              className="
                 flex
                 flex-col
                 sm:flex-row
                 gap-3
                 "
-              >
-
-                <input
-                  id="espStreamUrl"
-                  type="url"
-                  value={espStreamUrl}
-                  onChange={event => setEspStreamUrl(event.target.value)}
-                  className="
+            >
+              <input
+                id="espStreamUrl"
+                type="url"
+                value={espStreamUrl}
+                onChange={(event) => setEspStreamUrl(event.target.value)}
+                className="
                   w-full
                   max-w-xl
                   border
@@ -1389,18 +906,13 @@ function CameraSimulator() {
                   px-3
                   py-2
                   "
-                />
+              />
 
-                <button
-                  type="button"
-                  onClick={
-                    connectEspCamera
-                  }
-                  disabled={
-                    !selectedDeviceId ||
-                    running
-                  }
-                  className="
+              <button
+                type="button"
+                onClick={connectEspCamera}
+                disabled={!selectedDeviceId || running}
+                className="
                   bg-teal-600
                   hover:bg-teal-700
                   text-white
@@ -1412,27 +924,23 @@ function CameraSimulator() {
                   duration-300
                   disabled:opacity-50
                   "
-                >
-                  Connect
-                </button>
+              >
+                Connect
+              </button>
+            </div>
 
-              </div>
-
-              <p
-                className="
+            <p
+              className="
                 mt-2
                 text-sm
                 text-gray-600
                 "
-              >
-                Stream ESP32-CAM diteruskan melalui backend Express agar aman digunakan oleh canvas.
-              </p>
-
-            </div>
-
-          )
-        }
-
+            >
+              Stream ESP32-CAM diteruskan melalui backend Express agar aman
+              digunakan oleh canvas.
+            </p>
+          </div>
+        )}
       </div>
 
       <div
@@ -1443,9 +951,7 @@ function CameraSimulator() {
         gap-5
         "
       >
-
         <div>
-
           <h3
             className="
             font-semibold
@@ -1455,65 +961,37 @@ function CameraSimulator() {
             Original Camera
           </h3>
 
-          {
-            cameraSource ===
-              "webcam"
-              ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="
+          {cameraSource === "webcam" ? (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="
                   w-full
                   rounded-2xl
                   shadow-[0_18px_45px_rgba(15,118,110,0.10)]
                   border
                   bg-black
                   "
-                />
-              )
-              : connectedEspUrl
-                ? (
-                  <img
-                    ref={espImageRef}
-                    src={connectedEspUrl}
-                    crossOrigin="anonymous"
-                    alt="ESP32-CAM stream"
-                    onLoad={() => {
-                      if (
-                        !cameraActiveRef.current &&
-                        activeSourceTypeRef.current ===
-                          "esp32"
-                      ) {
-                        clearTimeout(
-                          espTimeoutRef.current
-                        );
-                        startProcessing(
-                          "esp32"
-                        );
-                        setStatus(
-                          "Connected to ESP32-CAM"
-                        );
-                      }
-                    }}
-                    onError={() =>
-                      stopCamera(
-                        "Failed to connect to ESP32-CAM"
-                      )
-                    }
-                    className="
+            />
+          ) : cameraSource === "websocket" ? (
+            wsCameraFrame ? (
+              <img
+                ref={wsImageRef}
+                src={wsCameraFrame}
+                alt="WebSocket stream"
+                className="
                     w-full
                     rounded-2xl
                     shadow-[0_18px_45px_rgba(15,118,110,0.10)]
                     border
                     bg-black
                     "
-                  />
-                )
-                : (
-                  <div
-                    className="
+              />
+            ) : (
+              <div
+                className="
                     aspect-video
                     w-full
                     rounded-2xl
@@ -1525,11 +1003,53 @@ function CameraSimulator() {
                     items-center
                     justify-center
                     "
-                  >
-                    ESP32-CAM not connected
-                  </div>
-                )
-          }
+              >
+                Waiting for WebSocket Stream...
+              </div>
+            )
+          ) : connectedEspUrl ? (
+            <img
+              ref={espImageRef}
+              src={connectedEspUrl}
+              crossOrigin="anonymous"
+              alt="ESP32-CAM stream"
+              onLoad={() => {
+                if (
+                  !cameraActiveRef.current &&
+                  activeSourceTypeRef.current === "esp32"
+                ) {
+                  clearTimeout(espTimeoutRef.current);
+                  startProcessing("esp32");
+                  setStatus("Connected to ESP32-CAM");
+                }
+              }}
+              onError={() => stopCamera("Failed to connect to ESP32-CAM")}
+              className="
+                    w-full
+                    rounded-2xl
+                    shadow-[0_18px_45px_rgba(15,118,110,0.10)]
+                    border
+                    bg-black
+                    "
+            />
+          ) : (
+            <div
+              className="
+                    aspect-video
+                    w-full
+                    rounded-2xl
+                    shadow-[0_18px_45px_rgba(15,118,110,0.10)]
+                    border
+                    bg-black
+                    text-slate-300
+                    flex
+                    items-center
+                    justify-center
+                    "
+            >
+              ESP32-CAM not connected
+            </div>
+          )}
 
           <div
             className="
@@ -1537,16 +1057,11 @@ function CameraSimulator() {
             text-gray-700
             "
           >
-            Std Dev: {
-              originalStandardDeviation
-                .toFixed(2)
-            }
+            Std Dev: {originalStandardDeviation.toFixed(2)}
           </div>
-
         </div>
 
         <div>
-
           <h3
             className="
             font-semibold
@@ -1557,9 +1072,7 @@ function CameraSimulator() {
           </h3>
 
           <canvas
-            ref={
-              enhancedCanvasRef
-            }
+            ref={enhancedCanvasRef}
             className="
             w-full
             rounded-2xl
@@ -1575,14 +1088,9 @@ function CameraSimulator() {
             text-gray-700
             "
           >
-            Std Dev: {
-              enhancedStandardDeviation
-                .toFixed(2)
-            }
+            Std Dev: {enhancedStandardDeviation.toFixed(2)}
           </div>
-
         </div>
-
       </div>
 
       <div
@@ -1594,7 +1102,6 @@ function CameraSimulator() {
         mt-5
         "
       >
-
         <div
           className="
           rounded-2xl
@@ -1608,7 +1115,6 @@ function CameraSimulator() {
           hover:shadow-[0_22px_55px_rgba(15,118,110,0.12)]
           "
         >
-
           <h3
             className="
             font-semibold
@@ -1619,16 +1125,8 @@ function CameraSimulator() {
           </h3>
 
           <div className="h-72">
-            <Bar
-              data={
-                originalHistogramData
-              }
-              options={
-                histogramOptions
-              }
-            />
+            <Bar data={originalHistogramData} options={histogramOptions} />
           </div>
-
         </div>
 
         <div
@@ -1644,7 +1142,6 @@ function CameraSimulator() {
           hover:shadow-[0_22px_55px_rgba(15,118,110,0.12)]
           "
         >
-
           <h3
             className="
             font-semibold
@@ -1655,33 +1152,22 @@ function CameraSimulator() {
           </h3>
 
           <div className="h-72">
-            <Bar
-              data={
-                enhancedHistogramData
-              }
-              options={
-                histogramOptions
-              }
-            />
+            <Bar data={enhancedHistogramData} options={histogramOptions} />
           </div>
-
         </div>
-
       </div>
 
       <canvas
         ref={captureCanvasRef}
         style={{
-          display:
-            "none"
+          display: "none",
         }}
       />
 
       <canvas
         ref={histogramCanvasRef}
         style={{
-          display:
-            "none"
+          display: "none",
         }}
       />
 
@@ -1692,18 +1178,13 @@ function CameraSimulator() {
         mt-5
         "
       >
-
         <button
           type="button"
-          onClick={
-            startCamera
-          }
-          disabled={
-            running ||
-            !selectedDeviceId ||
-            cameraSource !==
-              "webcam"
-          }
+          onClick={() => {
+            if (cameraSource === "webcam") startCamera();
+            else connectWebSocket();
+          }}
+          disabled={running || !selectedDeviceId || cameraSource === "esp32"}
           className="
           premium-button
           transition-all
@@ -1718,14 +1199,8 @@ function CameraSimulator() {
 
         <button
           type="button"
-          onClick={
-            () =>
-              stopCamera()
-          }
-          disabled={
-            !running &&
-            !connectedEspUrl
-          }
+          onClick={() => stopCamera()}
+          disabled={!running && !connectedEspUrl && !wsCameraFrame}
           className="
           bg-red-500
           hover:bg-red-600
@@ -1741,7 +1216,6 @@ function CameraSimulator() {
         >
           Stop Camera
         </button>
-
       </div>
 
       <div
@@ -1754,19 +1228,10 @@ function CameraSimulator() {
         shadow-[0_12px_30px_rgba(15,118,110,0.08)]
         "
       >
-        <span className="font-semibold">
-          Status:
-        </span>
-        {" "}
-        {status}
+        <span className="font-semibold">Status:</span> {status}
       </div>
-
     </MainLayout>
-
   );
-
 }
 
 export default CameraSimulator;
-
-

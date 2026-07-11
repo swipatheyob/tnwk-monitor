@@ -1,0 +1,11 @@
+# Dependency folder (wajib di-ignore karena ukurannya sangat besar)
+node_modules/
+
+# Local environment variables (berisi database credentials, API keys, dll)
+.env
+
+# Folder upload files dari user
+uploads/
+
+# Log files jika ada error
+*.log
