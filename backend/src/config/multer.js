@@ -1,110 +1,50 @@
-const multer =
-  require("multer");
+const multer = require("multer");
 
-const path =
-  require("path");
+const path = require("path");
 
-const storage =
-  multer.diskStorage({
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/original/");
+  },
 
-    destination:
-      function (
-        req,
-        file,
-        cb
-      ) {
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
 
-        cb(
-          null,
-          "uploads/original/"
-        );
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    // IMAGE
 
-      },
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
 
-    filename:
-      function (
-        req,
-        file,
-        cb
-      ) {
+    // VIDEO
 
-        cb(
-          null,
-          Date.now() +
-          path.extname(
-            file.originalname
-          )
-        );
+    "video/mp4",
+    "video/webm",
+    "video/avi",
+    "video/quicktime",
+  ];
 
-      }
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Format file tidak didukung"), false);
+  }
+};
 
-  });
+const upload = multer({
+  storage,
 
-const fileFilter =
-  (
-    req,
-    file,
-    cb
-  ) => {
+  fileFilter,
 
-    const allowedTypes = [
+  limits: {
+    fileSize: 100 * 1024 * 1024,
 
-      // IMAGE
+    // 100 MB
+  },
+});
 
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-
-      // VIDEO
-
-      "video/mp4",
-      "video/webm",
-      "video/avi",
-      "video/quicktime"
-
-    ];
-
-    if (
-      allowedTypes.includes(
-        file.mimetype
-      )
-    ) {
-
-      cb(
-        null,
-        true
-      );
-
-    } else {
-
-      cb(
-        new Error(
-          "Format file tidak didukung"
-        ),
-        false
-      );
-
-    }
-
-  };
-
-const upload =
-  multer({
-
-    storage,
-
-    fileFilter,
-
-    limits: {
-
-      fileSize:
-        100 * 1024 * 1024
-
-      // 100 MB
-
-    }
-
-  });
-
-module.exports =
-  upload;
+module.exports = upload;

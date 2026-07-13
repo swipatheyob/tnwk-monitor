@@ -1,17 +1,12 @@
 import {useEffect, useState, useRef} from "react";
-
 import MainLayout from "../layouts/MainLayout";
-
 import {getCaptures} from "../services/captureService";
-
 import {getCaptureDate, getDeviceDisplayName} from "../utils/captureHelper";
-
 import {
   processHistogram,
   getMetrics,
   getHistogramData,
 } from "../services/analysisService";
-
 import {
   BarChart,
   Bar,
@@ -24,11 +19,8 @@ import {BACKEND_BASE_URL} from "../config/apiConfig";
 
 function Analysis() {
   const [captures, setCaptures] = useState([]);
-
   const [selectedCapture, setSelectedCapture] = useState(null);
-
   const [selectedDeviceFilter, setSelectedDeviceFilter] = useState("");
-
   const [selectedDateFilter, setSelectedDateFilter] = useState("");
   const [metrics, setMetrics] = useState(null);
 
@@ -97,11 +89,8 @@ function Analysis() {
 
   const getStdDevDescription = (values) => {
     const original = Number(values.original);
-
     const enhanced = Number(values.enhanced);
-
     const almostSameThreshold = 5;
-
     const almostSame = Math.abs(enhanced - original) <= almostSameThreshold;
 
     if (almostSame) {
@@ -126,19 +115,12 @@ function Analysis() {
 
   const getConclusionDescription = (metricValues, stdDevValues) => {
     const mse = Number(metricValues.mse);
-
     const psnr = Number(metricValues.psnr);
-
     const ssim = Number(metricValues.ssim);
-
     const original = Number(stdDevValues.original);
-
     const enhanced = Number(stdDevValues.enhanced);
-
     const contrastImproved = enhanced > original;
-
     const structurePreserved = ssim >= 0.75;
-
     const qualityPreserved = mse < 1000 && psnr >= 30;
 
     if (contrastImproved && structurePreserved && qualityPreserved) {
@@ -161,31 +143,49 @@ function Analysis() {
     };
   };
 
+  const getSourceBadgeStyle = (source) => {
+    switch (source) {
+      case "esp32cam":
+        return "border-blue-100 bg-blue-50 text-blue-700";
+      case "websocket":
+        return "border-purple-100 bg-purple-50 text-purple-700";
+      case "webcam":
+      default:
+        return "border-emerald-100 bg-emerald-50 text-emerald-700";
+    }
+  };
+
+  const getSourceLabel = (source) => {
+    switch (source) {
+      case "esp32cam":
+        return "ESP32-CAM";
+      case "websocket":
+        return "WEBSOCKET";
+      case "webcam":
+      default:
+        return "WEBCAM";
+    }
+  };
+
   const getInterpretationIconClass = (status) => {
     if (status === "good")
       return "bg-emerald-100 text-emerald-700 border-emerald-200";
-
     if (status === "moderate")
       return "bg-amber-100 text-amber-700 border-amber-200";
-
     return "bg-red-100 text-red-700 border-red-200";
   };
 
   const getInterpretationIcon = (status) => {
     if (status === "good") return "✓";
-
     if (status === "moderate") return "!";
-
     return "×";
   };
 
   const formatMetricValue = (value) => {
     const numberValue = Number(value);
-
     if (Number.isFinite(numberValue)) {
       return numberValue.toFixed(4);
     }
-
     return value ?? "-";
   };
 
@@ -201,7 +201,6 @@ function Analysis() {
 
   const getDownloadFileName = (prefix, capture, filename) => {
     const extension = filename?.split(".").pop() || "png";
-
     return (
       [
         prefix,
@@ -210,28 +209,12 @@ function Analysis() {
       ].join("-") + `.${extension}`
     );
   };
+
   const renderInterpretationRow = (label, interpretation) => (
-    <div
-      className="
-      flex
-      items-start
-      gap-3
-      "
-      key={label}
-    >
+    <div className="flex items-start gap-3" key={label}>
       <span
         className={`
-        mt-0.5
-        flex
-        h-6
-        w-6
-        shrink-0
-        items-center
-        justify-center
-        rounded-full
-        border
-        text-sm
-        font-bold
+        mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-bold
         ${getInterpretationIconClass(interpretation.status)}
         `}
       >
@@ -277,22 +260,10 @@ function Analysis() {
     ];
 
     return (
-      <div
-        className="
-        grid
-        grid-cols-1
-        gap-3
-        "
-      >
+      <div className="grid grid-cols-1 gap-3">
         {metricCards.map((metric) => (
           <div
-            className="
-                rounded-2xl
-                border
-                border-slate-200
-                bg-slate-50
-                p-4
-                "
+            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
             key={metric.label}
           >
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
@@ -306,28 +277,19 @@ function Analysis() {
       </div>
     );
   };
+
   const [histogramData, setHistogramData] = useState(null);
-
   const [imageVersion, setImageVersion] = useState(0);
-
   const [downloadingVideoTarget, setDownloadingVideoTarget] = useState("");
-
   const videoRef = useRef(null);
-
   const canvasRef = useRef(null);
-
   const heCanvasRef = useRef(null);
-
   const enhancedCanvasRef = useRef(null);
-
   const [originalHistogram, setOriginalHistogram] = useState([]);
-
   const [heHistogramRealtime, setHeHistogramRealtime] = useState([]);
-
   const [enhancedHistogramRealtime, setEnhancedHistogramRealtime] = useState(
     [],
   );
-
   const [stdDeviation, setStdDeviation] = useState({
     original: 0,
     he: 0,
@@ -336,11 +298,8 @@ function Analysis() {
 
   const resetSelectedAnalysis = () => {
     setSelectedCapture(null);
-
     setMetrics(null);
-
     setHistogramData(null);
-
     setStdDeviation({
       original: 0,
       he: 0,
@@ -353,11 +312,9 @@ function Analysis() {
 
   const getCaptureDateKey = (capture) => {
     const date = new Date(capture?.capturedAt || capture?.createdAt);
-
     if (Number.isNaN(date.getTime())) {
       return "";
     }
-
     return [
       date.getFullYear(),
       String(date.getMonth() + 1).padStart(2, "0"),
@@ -369,20 +326,16 @@ function Analysis() {
     if (!dateKey) {
       return "Tanggal tidak tersedia";
     }
-
     const [year, month, day] = dateKey.split("-");
-
     return [day, month, year].join("/");
   };
 
   const deviceFilterOptions = Array.from(
     captures.reduce((map, capture) => {
       const deviceId = getCaptureDeviceId(capture);
-
       if (deviceId) {
         map.set(deviceId, getDeviceDisplayName(capture));
       }
-
       return map;
     }, new Map()),
   );
@@ -390,11 +343,9 @@ function Analysis() {
   const dateFilterOptions = Array.from(
     captures.reduce((map, capture) => {
       const dateKey = getCaptureDateKey(capture);
-
       if (dateKey) {
         map.set(dateKey, getCaptureDateLabel(dateKey));
       }
-
       return map;
     }, new Map()),
   );
@@ -403,19 +354,17 @@ function Analysis() {
     const matchesDevice =
       !selectedDeviceFilter ||
       getCaptureDeviceId(capture) === selectedDeviceFilter;
-
     const matchesDate =
       !selectedDateFilter || getCaptureDateKey(capture) === selectedDateFilter;
-
     return matchesDevice && matchesDate;
   });
+
   const calculateStdDeviation = (histogram) => {
     if (!histogram || histogram.length === 0) {
       return "0.00";
     }
 
     const pixelCount = histogram.reduce((total, value) => total + value, 0);
-
     if (pixelCount === 0) {
       return "0.00";
     }
@@ -448,13 +397,11 @@ function Analysis() {
     const fetchData = async () => {
       try {
         const data = await getCaptures();
-
         setCaptures(data.captures);
       } catch (error) {
         console.log(error);
       }
     };
-
     fetchData();
   }, []);
 
@@ -462,39 +409,28 @@ function Analysis() {
     if (!filename) {
       return;
     }
-
     try {
       const response = await fetch(getProcessedImageUrl(filename));
-
       if (!response.ok) {
         throw new Error("Download failed");
       }
-
       const blob = await response.blob();
-
       const objectUrl = URL.createObjectURL(blob);
-
       const link = document.createElement("a");
-
       link.href = objectUrl;
       link.download = getDownloadFileName(prefix, selectedCapture, filename);
-
       document.body.appendChild(link);
-
       link.click();
       link.remove();
-
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.log(error);
-
       window.alert("Gagal mengunduh gambar");
     }
   };
 
   const handleDownloadVideo = async (canvasRef, prefix) => {
     const video = videoRef.current;
-
     const canvas = canvasRef.current;
 
     if (
@@ -522,7 +458,6 @@ function Analysis() {
       analyzeVideoFrame();
 
       const stream = canvas.captureStream(30);
-
       const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
         ? "video/webm;codecs=vp9"
         : "video/webm";
@@ -541,30 +476,21 @@ function Analysis() {
 
       recorder.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
-
         const blob = new Blob(chunks, {
           type: "video/webm",
         });
-
         const objectUrl = URL.createObjectURL(blob);
-
         const link = document.createElement("a");
-
         link.href = objectUrl;
-
         link.download = getDownloadFileName(
           prefix,
           selectedCapture,
           "video.webm",
         );
-
         document.body.appendChild(link);
-
         link.click();
         link.remove();
-
         URL.revokeObjectURL(objectUrl);
-
         setDownloadingVideoTarget("");
       };
 
@@ -572,7 +498,6 @@ function Analysis() {
         if (recorder.state !== "inactive") {
           recorder.stop();
         }
-
         video.removeEventListener("ended", stopRecording);
       };
 
@@ -581,57 +506,44 @@ function Analysis() {
       });
 
       recorder.start();
-
       await video.play();
     } catch (error) {
       console.log(error);
-
       setDownloadingVideoTarget("");
-
       window.alert("Gagal mengunduh video");
     }
   };
+
   const handleProcess = async () => {
     try {
       await processHistogram(selectedCapture._id);
-
       const data = await getCaptures();
-
       setCaptures(data.captures);
 
       const updatedCapture = data.captures.find(
         (item) => item._id === selectedCapture._id,
       );
-
       setSelectedCapture(updatedCapture);
 
       const metricsData = await getMetrics(selectedCapture._id);
-
       setMetrics(metricsData);
 
       const histogram = await getHistogramData(selectedCapture._id);
-
       setHistogramData(histogram);
 
       updateStdDeviationFromHistogram(histogram);
-
       setImageVersion(Date.now());
-
       alert("Histogram Equalization Success");
     } catch (error) {
       console.log(error);
-
       alert("Histogram Equalization Failed");
     }
   };
 
   const analyzeVideoFrame = () => {
     const video = videoRef.current;
-
     const canvas = canvasRef.current;
-
     const heCanvas = heCanvasRef.current;
-
     const enhancedCanvas = enhancedCanvasRef.current;
 
     if (
@@ -649,66 +561,47 @@ function Analysis() {
     const ctx = canvas.getContext("2d", {
       willReadFrequently: true,
     });
-
     const heCtx = heCanvas.getContext("2d");
-
     const enhancedCtx = enhancedCanvas.getContext("2d");
 
     const width = video.videoWidth;
-
     const height = video.videoHeight;
 
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
-
       canvas.height = height;
-
       heCanvas.width = width;
-
       heCanvas.height = height;
-
       enhancedCanvas.width = width;
-
       enhancedCanvas.height = height;
     }
 
     ctx.drawImage(video, 0, 0, width, height);
-
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
     const pixels = imageData.data;
 
     const originalHistogramValues = Array(256).fill(0);
-
     const grayValues = new Uint8ClampedArray(width * height);
 
     for (let i = 0, pixelIndex = 0; i < pixels.length; i += 4, pixelIndex++) {
       const gray = Math.round(
         0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2],
       );
-
       grayValues[pixelIndex] = gray;
-
       originalHistogramValues[gray]++;
     }
 
     const pixelCount = grayValues.length;
-
     let cdf = 0;
-
     let cdfMin = 0;
-
     const equalizationMap = Array(256).fill(0);
 
     for (let intensity = 0; intensity < 256; intensity++) {
       cdf += originalHistogramValues[intensity];
-
       if (cdfMin === 0 && cdf > 0) {
         cdfMin = cdf;
       }
-
       const denominator = pixelCount - cdfMin;
-
       equalizationMap[intensity] =
         denominator > 0
           ? Math.round(((cdf - cdfMin) / denominator) * 255)
@@ -716,37 +609,29 @@ function Analysis() {
     }
 
     const heImageData = heCtx.createImageData(width, height);
-
     const enhancedImageData = enhancedCtx.createImageData(width, height);
-
     const heHistogramValues = Array(256).fill(0);
-
     const enhancedHistogramValues = Array(256).fill(0);
 
     for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
       const originalGray = grayValues[pixelIndex];
-
       const heGray = equalizationMap[originalGray];
-
       const enhancedGray = Math.max(
         0,
         Math.min(255, Math.round((heGray - 128) * 1.2 + 136)),
       );
 
       const dataIndex = pixelIndex * 4;
-
       const luminanceScale = originalGray > 0 ? enhancedGray / originalGray : 0;
 
       const enhancedRed = Math.min(
         255,
         Math.round(pixels[dataIndex] * luminanceScale),
       );
-
       const enhancedGreen = Math.min(
         255,
         Math.round(pixels[dataIndex + 1] * luminanceScale),
       );
-
       const enhancedBlue = Math.min(
         255,
         Math.round(pixels[dataIndex + 2] * luminanceScale),
@@ -757,28 +642,20 @@ function Analysis() {
       );
 
       heImageData.data[dataIndex] = heGray;
-
       heImageData.data[dataIndex + 1] = heGray;
-
       heImageData.data[dataIndex + 2] = heGray;
-
       heImageData.data[dataIndex + 3] = 255;
 
       enhancedImageData.data[dataIndex] = enhancedRed;
-
       enhancedImageData.data[dataIndex + 1] = enhancedGreen;
-
       enhancedImageData.data[dataIndex + 2] = enhancedBlue;
-
       enhancedImageData.data[dataIndex + 3] = 255;
 
       heHistogramValues[heGray]++;
-
       enhancedHistogramValues[enhancedLuminance]++;
     }
 
     heCtx.putImageData(heImageData, 0, 0);
-
     enhancedCtx.putImageData(enhancedImageData, 0, 0);
 
     const toHistogramData = (histogram) =>
@@ -794,9 +671,7 @@ function Analysis() {
     });
 
     setOriginalHistogram(toHistogramData(originalHistogramValues));
-
     setHeHistogramRealtime(toHistogramData(heHistogramValues));
-
     setEnhancedHistogramRealtime(toHistogramData(enhancedHistogramValues));
   };
 
@@ -804,9 +679,7 @@ function Analysis() {
     if (selectedCapture?.mediaType !== "video") {
       return;
     }
-
     const interval = setInterval(analyzeVideoFrame, 100);
-
     return () => clearInterval(interval);
   }, [selectedCapture]);
 
@@ -814,26 +687,14 @@ function Analysis() {
     <MainLayout>
       <div className="mb-8">
         <span className="page-kicker">AI Image Processing Lab</span>
-
         <h1 className="page-title">Histogram Equalization Analysis</h1>
-
         <p className="page-description">
           Analisis citra menggunakan Histogram Equalization dan peningkatan
           kualitas visual untuk monitoring satwa.
         </p>
       </div>
 
-      <div
-        className="
-        mb-4
-        grid
-        w-full
-        max-w-5xl
-        grid-cols-1
-        gap-4
-        md:grid-cols-2
-        "
-      >
+      <div className="mb-4 grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
           Filter Perangkat
           <select
@@ -842,19 +703,7 @@ function Analysis() {
               setSelectedDeviceFilter(event.target.value);
               resetSelectedAnalysis();
             }}
-            className="
-            w-full
-            rounded-xl
-            border
-            border-slate-300
-            bg-white
-            px-4
-            py-3
-            shadow-sm
-            focus:outline-none
-            focus:ring-2
-            focus:ring-emerald-500
-            "
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">Semua perangkat</option>
             {deviceFilterOptions.map(([deviceId, deviceName]) => (
@@ -873,19 +722,7 @@ function Analysis() {
               setSelectedDateFilter(event.target.value);
               resetSelectedAnalysis();
             }}
-            className="
-            w-full
-            rounded-xl
-            border
-            border-slate-300
-            bg-white
-            px-4
-            py-3
-            shadow-sm
-            focus:outline-none
-            focus:ring-2
-            focus:ring-emerald-500
-            "
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">Semua tanggal</option>
             {dateFilterOptions.map(([dateKey, dateLabel]) => (
@@ -899,44 +736,24 @@ function Analysis() {
 
       <select
         value={selectedCapture?._id || ""}
-        className="
-        w-full
-        max-w-xl
-        bg-white
-        border
-        border-slate-300
-        rounded-xl
-        px-4
-        py-3
-        mb-6
-        shadow-sm
-        focus:outline-none
-        focus:ring-2
-        focus:ring-emerald-500
-        "
+        className="w-full max-w-xl bg-white border border-slate-300 rounded-xl px-4 py-3 mb-6 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         onChange={async (e) => {
           const capture = captures.find((item) => item._id === e.target.value);
-
           setSelectedCapture(capture);
 
           if (capture?.processedImage) {
             try {
               const metricsData = await getMetrics(capture._id);
-
               setMetrics(metricsData);
 
               const histogram = await getHistogramData(capture._id);
-
               setHistogramData(histogram);
 
               updateStdDeviationFromHistogram(histogram);
             } catch (error) {
               console.log(error);
-
               setMetrics(null);
-
               setHistogramData(null);
-
               setStdDeviation({
                 original: 0,
                 he: 0,
@@ -945,9 +762,7 @@ function Analysis() {
             }
           } else {
             setMetrics(null);
-
             setHistogramData(null);
-
             setStdDeviation({
               original: 0,
               he: 0,
@@ -957,11 +772,9 @@ function Analysis() {
         }}
       >
         <option value="">Select Capture</option>
-
         {filteredCaptures.length === 0 && (
           <option disabled>Tidak ada capture sesuai filter</option>
         )}
-
         {filteredCaptures.map((capture) => (
           <option key={capture._id} value={capture._id}>
             {getDeviceDisplayName(capture)}
@@ -973,18 +786,10 @@ function Analysis() {
 
       {selectedCapture && (
         <>
-          <div
-            className="
-              flex
-              items-center
-              gap-3
-              mb-5
-              "
-          >
+          <div className="flex items-center gap-3 mb-5">
             <h2 className="text-3xl font-bold text-slate-800 mt-2">
               {getDeviceDisplayName(selectedCapture)}
             </h2>
-
             <span
               className={`
                 px-2
@@ -993,43 +798,16 @@ function Analysis() {
                 text-xs
                 font-semibold
                 border
-                ${
-                  selectedCapture.source === "esp32cam"
-                    ? "border-blue-100 bg-blue-50 text-blue-700"
-                    : "border-emerald-100 bg-emerald-50 text-emerald-700"
-                }
+                ${getSourceBadgeStyle(selectedCapture.source)}
                 `}
             >
-              {selectedCapture.source === "esp32cam" ? "ESP32-CAM" : "WEBCAM"}
+              {getSourceLabel(selectedCapture.source)}
             </span>
           </div>
 
-          <div
-            className="
-              grid
-              grid-cols-1
-              md:grid-cols-3
-              gap-5
-              "
-          >
-            <div
-              className="
-                bg-white
-                  p-5
-                  rounded-2xl
-                  shadow-lg
-                  border
-                "
-            >
-              <h3
-                className="
-                  font-bold
-                  mb-3
-                  "
-              >
-                Original Image
-              </h3>
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white p-5 rounded-2xl shadow-lg border">
+              <h3 className="font-bold mb-3">Original Image</h3>
               {selectedCapture.mediaType === "video" ? (
                 <>
                   <video
@@ -1038,16 +816,12 @@ function Analysis() {
                     controls
                     autoPlay
                     muted
-                    className="
-                        w-full
-                        rounded
-                        "
+                    className="w-full rounded"
                   >
                     <source
                       src={`${BACKEND_BASE_URL}/uploads/original/${selectedCapture.originalImage}`}
                     />
                   </video>
-
                   <canvas
                     ref={canvasRef}
                     style={{
@@ -1059,68 +833,23 @@ function Analysis() {
                 <img
                   src={`${BACKEND_BASE_URL}/uploads/original/${selectedCapture.originalImage}`}
                   alt="original"
-                  className="
-                      w-full
-                      rounded
-                      "
+                  className="w-full rounded"
                 />
               )}
             </div>
 
-            <div
-              className="
-                bg-white
-                p-5
-                rounded-2xl
-                shadow-lg
-                border
-                "
-            >
-              <h3
-                className="
-                  font-bold
-                  mb-3
-                  "
-              >
-                Enhanced Image
-              </h3>
-
+            <div className="bg-white p-5 rounded-2xl shadow-lg border">
+              <h3 className="font-bold mb-3">Enhanced Image</h3>
               {selectedCapture.mediaType === "video" ? (
                 <>
-                  <canvas
-                    ref={enhancedCanvasRef}
-                    className="
-                        w-full
-                        rounded
-                        "
-                  />
-
+                  <canvas ref={enhancedCanvasRef} className="w-full rounded" />
                   <button
                     type="button"
                     onClick={() =>
                       handleDownloadVideo(enhancedCanvasRef, "enhanced-video")
                     }
                     disabled={Boolean(downloadingVideoTarget)}
-                    className="
-                        mt-4
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        rounded-xl
-                        border
-                        border-teal-200
-                        bg-teal-50
-                        px-4
-                        py-3
-                        text-sm
-                        font-bold
-                        text-teal-700
-                        transition
-                        hover:bg-teal-100
-                        disabled:cursor-not-allowed
-                        disabled:opacity-60
-                        "
+                    className="mt-4 flex w-full items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {downloadingVideoTarget === "enhanced-video"
                       ? "Merekam Enhanced Video..."
@@ -1132,12 +861,8 @@ function Analysis() {
                   <img
                     src={`${getProcessedImageUrl(selectedCapture.processedImage)}?v=${imageVersion}`}
                     alt="processed"
-                    className="
-                          w-full
-                          rounded
-                          "
+                    className="w-full rounded"
                   />
-
                   <button
                     type="button"
                     onClick={() =>
@@ -1146,24 +871,7 @@ function Analysis() {
                         "enhanced",
                       )
                     }
-                    className="
-                          mt-4
-                          flex
-                          w-full
-                          items-center
-                          justify-center
-                          rounded-xl
-                          border
-                          border-teal-200
-                          bg-teal-50
-                          px-4
-                          py-3
-                          text-sm
-                          font-bold
-                          text-teal-700
-                          transition
-                          hover:bg-teal-100
-                          "
+                    className="mt-4 flex w-full items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-100"
                   >
                     Download Enhanced Image
                   </button>
@@ -1175,43 +883,16 @@ function Analysis() {
 
             <div className="bg-white p-5 rounded-2xl shadow-lg border">
               <h3 className="font-bold mb-3">Grayscale Image</h3>
-
               {selectedCapture.mediaType === "video" ? (
                 <>
-                  <canvas
-                    ref={heCanvasRef}
-                    className="
-                        w-full
-                        rounded
-                        "
-                  />
-
+                  <canvas ref={heCanvasRef} className="w-full rounded" />
                   <button
                     type="button"
                     onClick={() =>
                       handleDownloadVideo(heCanvasRef, "grayscale-video")
                     }
                     disabled={Boolean(downloadingVideoTarget)}
-                    className="
-                        mt-4
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        rounded-xl
-                        border
-                        border-teal-200
-                        bg-teal-50
-                        px-4
-                        py-3
-                        text-sm
-                        font-bold
-                        text-teal-700
-                        transition
-                        hover:bg-teal-100
-                        disabled:cursor-not-allowed
-                        disabled:opacity-60
-                        "
+                    className="mt-4 flex w-full items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {downloadingVideoTarget === "grayscale-video"
                       ? "Merekam Grayscale Video..."
@@ -1223,35 +904,14 @@ function Analysis() {
                   <img
                     src={`${getProcessedImageUrl(selectedCapture.heImage)}?v=${imageVersion}`}
                     alt="he"
-                    className="
-                          w-full
-                          rounded
-                          "
+                    className="w-full rounded"
                   />
-
                   <button
                     type="button"
                     onClick={() =>
                       handleDownloadImage(selectedCapture.heImage, "he")
                     }
-                    className="
-                          mt-4
-                          flex
-                          w-full
-                          items-center
-                          justify-center
-                          rounded-xl
-                          border
-                          border-teal-200
-                          bg-teal-50
-                          px-4
-                          py-3
-                          text-sm
-                          font-bold
-                          text-teal-700
-                          transition
-                          hover:bg-teal-100
-                          "
+                    className="mt-4 flex w-full items-center justify-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-100"
                   >
                     Download Grayscale Image
                   </button>
@@ -1262,32 +922,14 @@ function Analysis() {
             </div>
 
             {metrics && (
-              <div
-                className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    md:col-start-2
-                    "
-              >
+              <div className="bg-white p-5 rounded-2xl shadow-lg border md:col-start-2">
                 <h3 className="font-bold mb-3">Metrik Hasil Enhanced Image</h3>
                 {renderMetricSummary(getEnhancedMetrics(metrics))}
               </div>
             )}
 
             {metrics && getHeMetrics(metrics) && (
-              <div
-                className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    md:col-start-3
-                    "
-              >
+              <div className="bg-white p-5 rounded-2xl shadow-lg border md:col-start-3">
                 <h3 className="font-bold mb-3">Metrik Hasil Grayscale Image</h3>
                 {renderMetricSummary(getHeMetrics(metrics))}
               </div>
@@ -1296,66 +938,31 @@ function Analysis() {
 
           <button
             onClick={handleProcess}
-            className="
-              premium-button
-              mt-6
-              px-6
-              py-3
-              rounded-2xl
-              font-bold
-              transition-all
-              "
+            className="premium-button mt-6 px-6 py-3 rounded-2xl font-bold transition-all"
           >
             Process Histogram
           </button>
 
           {metrics && (
-            <div
-              className="
-                  mt-6
-                  bg-white
-                  rounded-2xl
-                  shadow-lg
-                  border
-                  p-6
-                  "
-            >
-              <h3
-                className="
-                    text-xl
-                    font-bold
-                    mb-4
-                    "
-              >
-                Interpretasi Hasil
-              </h3>
-
-              <div
-                className="
-                    space-y-3
-                    text-slate-700
-                    "
-              >
+            <div className="mt-6 bg-white rounded-2xl shadow-lg border p-6">
+              <h3 className="text-xl font-bold mb-4">Interpretasi Hasil</h3>
+              <div className="space-y-3 text-slate-700">
                 {renderInterpretationRow(
                   "MSE",
                   getMSEDescription(Number(getFinalMetrics(metrics).mse)),
                 )}
-
                 {renderInterpretationRow(
                   "PSNR",
                   getPSNRDescription(Number(getFinalMetrics(metrics).psnr)),
                 )}
-
                 {renderInterpretationRow(
                   "SSIM",
                   getSSIMDescription(Number(getFinalMetrics(metrics).ssim)),
                 )}
-
                 {renderInterpretationRow(
                   "Standard Deviation",
                   getStdDevDescription(stdDeviation),
                 )}
-
                 {renderInterpretationRow(
                   "Kesimpulan Analisis",
                   getConclusionDescription(
@@ -1368,134 +975,57 @@ function Analysis() {
           )}
 
           {selectedCapture?.mediaType === "video" && (
-            <div
-              className="
-                  mt-8
-                  grid
-                  grid-cols-1
-                  md:grid-cols-3
-                  gap-5
-                  "
-            >
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* ORIGINAL */}
-
-              <div
-                className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-              >
-                <h3
-                  className="
-                      font-bold
-                      mb-2
-                      "
-                >
-                  Original Histogram
-                </h3>
-
-                <p
-                  className="
-                      mb-3
-                      "
-                >
-                  Std Dev: {stdDeviation.original}
-                </p>
-
+              <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                <h3 className="font-bold mb-2">Original Histogram</h3>
+                <p className="mb-3">Std Dev: {stdDeviation.original}</p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={originalHistogram}>
                     <XAxis dataKey="intensity" />
-
                     <YAxis />
-
                     <Tooltip />
-
-                    <Bar dataKey="value" fill="#3B82F6" />
+                    <Bar
+                      dataKey="value"
+                      fill="#3B82F6"
+                      isAnimationActive={false}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* ENHANCED */}
-
-              <div
-                className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-              >
-                <h3
-                  className="
-                      font-bold
-                      mb-2
-                      "
-                >
-                  Enhanced Histogram
-                </h3>
-
-                <p
-                  className="
-                      mb-3
-                      "
-                >
-                  Std Dev: {stdDeviation.enhanced}
-                </p>
-
+              <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                <h3 className="font-bold mb-2">Enhanced Histogram</h3>
+                <p className="mb-3">Std Dev: {stdDeviation.enhanced}</p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={enhancedHistogramRealtime}>
                     <XAxis dataKey="intensity" />
-
                     <YAxis />
-
                     <Tooltip />
-
-                    <Bar dataKey="value" fill="#22C55E" />
+                    <Bar
+                      dataKey="value"
+                      fill="#22C55E"
+                      isAnimationActive={false}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Grayscale */}
-
-              <div
-                className="
-                    bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                    "
-              >
-                <h3
-                  className="
-                      font-bold
-                      mb-2
-                      "
-                >
-                  Grayscale Histogram
-                </h3>
-
-                <p
-                  className="
-                      mb-3
-                      "
-                >
-                  Std Dev: {stdDeviation.he}
-                </p>
-
+              <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                <h3 className="font-bold mb-2">Grayscale Histogram</h3>
+                <p className="mb-3">Std Dev: {stdDeviation.he}</p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={heHistogramRealtime}>
                     <XAxis dataKey="intensity" />
-
                     <YAxis />
-
                     <Tooltip />
-
-                    <Bar dataKey="value" fill="#F59E0B" />
+                    <Bar
+                      dataKey="value"
+                      fill="#F59E0B"
+                      isAnimationActive={false}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1503,41 +1033,10 @@ function Analysis() {
           )}
 
           {histogramData && (
-            <div
-              className="
-                mt-8
-                grid
-                grid-cols-1
-                md:grid-cols-3
-                gap-5
-                "
-            >
-              <div
-                className="
-                  bg-white
-                    p-5
-                    rounded-2xl
-                    shadow-lg
-                    border
-                  "
-              >
-                <h3
-                  className="
-                    font-bold
-                    mb-2
-                    "
-                >
-                  Original Histogram
-                </h3>
-
-                <p
-                  className="
-                    mb-3
-                    "
-                >
-                  Std Dev: {stdDeviation.original}
-                </p>
-
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                <h3 className="font-bold mb-2">Original Histogram</h3>
+                <p className="mb-3">Std Dev: {stdDeviation.original}</p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart
                     data={histogramData.originalHistogram.map(
@@ -1548,43 +1047,17 @@ function Analysis() {
                     )}
                   >
                     <XAxis dataKey="intensity" />
-
                     <YAxis />
-
                     <Tooltip />
-
                     <Bar dataKey="value" fill="#3B82F6" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {histogramData.enhancedHistogram && (
-                <div
-                  className="
-                      bg-white
-                      p-5
-                      rounded-2xl
-                      shadow-lg
-                      border
-                      "
-                >
-                  <h3
-                    className="
-                        font-bold
-                        mb-2
-                        "
-                  >
-                    Enhanced Histogram
-                  </h3>
-
-                  <p
-                    className="
-                        mb-3
-                        "
-                  >
-                    Std Dev: {stdDeviation.enhanced}
-                  </p>
-
+                <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                  <h3 className="font-bold mb-2">Enhanced Histogram</h3>
+                  <p className="mb-3">Std Dev: {stdDeviation.enhanced}</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
                       data={histogramData.enhancedHistogram.map(
@@ -1595,11 +1068,8 @@ function Analysis() {
                       )}
                     >
                       <XAxis dataKey="intensity" />
-
                       <YAxis />
-
                       <Tooltip />
-
                       <Bar dataKey="value" fill="#22C55E" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1607,32 +1077,9 @@ function Analysis() {
               )}
 
               {histogramData.heHistogram && (
-                <div
-                  className="
-                      bg-white
-                        p-5
-                        rounded-2xl
-                        shadow-lg
-                        border
-                      "
-                >
-                  <h3
-                    className="
-                        font-bold
-                        mb-2
-                        "
-                  >
-                    Grayscale Histogram
-                  </h3>
-
-                  <p
-                    className="
-                        mb-3
-                        "
-                  >
-                    Std Dev: {stdDeviation.he}
-                  </p>
-
+                <div className="bg-white p-5 rounded-2xl shadow-lg border">
+                  <h3 className="font-bold mb-2">Grayscale Histogram</h3>
+                  <p className="mb-3">Std Dev: {stdDeviation.he}</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
                       data={histogramData.heHistogram.map((value, index) => ({
@@ -1641,11 +1088,8 @@ function Analysis() {
                       }))}
                     >
                       <XAxis dataKey="intensity" />
-
                       <YAxis />
-
                       <Tooltip />
-
                       <Bar dataKey="value" fill="#F59E0B" />
                     </BarChart>
                   </ResponsiveContainer>
