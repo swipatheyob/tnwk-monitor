@@ -1032,19 +1032,19 @@ function Analysis() {
             </div>
           )}
 
-          {histogramData && (
+          {histogramData && histogramData?.originalHistogram && (
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="bg-white p-5 rounded-2xl shadow-lg border">
                 <h3 className="font-bold mb-2">Original Histogram</h3>
                 <p className="mb-3">Std Dev: {stdDeviation.original}</p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart
-                    data={histogramData.originalHistogram.map(
-                      (value, index) => ({
+                    data={
+                      histogramData?.originalHistogram?.map((value, index) => ({
                         intensity: index,
                         value,
-                      }),
-                    )}
+                      })) || []
+                    }
                   >
                     <XAxis dataKey="intensity" />
                     <YAxis />
@@ -1054,18 +1054,20 @@ function Analysis() {
                 </ResponsiveContainer>
               </div>
 
-              {histogramData.enhancedHistogram && (
+              {histogramData?.enhancedHistogram && (
                 <div className="bg-white p-5 rounded-2xl shadow-lg border">
                   <h3 className="font-bold mb-2">Enhanced Histogram</h3>
                   <p className="mb-3">Std Dev: {stdDeviation.enhanced}</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
-                      data={histogramData.enhancedHistogram.map(
-                        (value, index) => ({
-                          intensity: index,
-                          value,
-                        }),
-                      )}
+                      data={
+                        histogramData?.enhancedHistogram?.map(
+                          (value, index) => ({
+                            intensity: index,
+                            value,
+                          }),
+                        ) || []
+                      }
                     >
                       <XAxis dataKey="intensity" />
                       <YAxis />
@@ -1076,16 +1078,18 @@ function Analysis() {
                 </div>
               )}
 
-              {histogramData.heHistogram && (
+              {histogramData?.heHistogram && (
                 <div className="bg-white p-5 rounded-2xl shadow-lg border">
                   <h3 className="font-bold mb-2">Grayscale Histogram</h3>
                   <p className="mb-3">Std Dev: {stdDeviation.he}</p>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
-                      data={histogramData.heHistogram.map((value, index) => ({
-                        intensity: index,
-                        value,
-                      }))}
+                      data={
+                        histogramData?.heHistogram?.map((value, index) => ({
+                          intensity: index,
+                          value,
+                        })) || []
+                      }
                     >
                       <XAxis dataKey="intensity" />
                       <YAxis />
