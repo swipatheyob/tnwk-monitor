@@ -7,6 +7,10 @@ import {
 } from "react-router-dom";
 
 import {
+  Link
+} from "react-router-dom";
+
+import {
   FaChartLine,
   FaEye,
   FaLock,
@@ -546,6 +550,16 @@ function Login() {
               <FaShieldAlt className="text-emerald-500" />
               Protected monitoring environment
             </div>
+
+            <p className="mt-5 text-center text-sm text-slate-500">
+              Belum memiliki akun administrator?{" "}
+              <Link
+                to="/register"
+                className="font-bold text-teal-700 transition hover:text-teal-900"
+              >
+                Daftar sekarang
+              </Link>
+            </p>
 
           </form>
 

@@ -84,9 +84,9 @@ function CaptureDetail() {
             {/* HEADER */}
 
             <div>
-              <span className="page-kicker">Media Intelligence Viewer</span>
+              <span className="page-kicker">Alur 1 · Detail Media</span>
 
-              <h1 className="page-title">Capture Detail</h1>
+              <h1 className="page-title">Detail Capture</h1>
 
               <p className="page-description">
                 Detail hasil tangkapan media perangkat monitoring satwa.

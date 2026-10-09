@@ -127,14 +127,14 @@ function DeviceList() {
 
         <div>
           <span className="page-kicker">
-            IoT Fleet Control
+            Alur 1 · Manajemen Kamera
           </span>
           <h1 className="page-title">
-            Device Management
+            Kamera & Node Lapangan
           </h1>
           <p className="page-description">
-            Kelola node monitoring satwa, konektivitas,
-            dan koordinat penempatan perangkat lapangan.
+            Daftarkan kamera, perbarui konektivitas, dan kelola titik
+            penempatan perangkat untuk pengambilan data lapangan.
           </p>
         </div>
 
@@ -155,7 +155,7 @@ function DeviceList() {
           "
         >
           <FaPlus />
-          Register Device
+          Tambah Kamera
         </Link>
 
       </div>
@@ -172,9 +172,9 @@ function DeviceList() {
 
         {
           [
-            ["Total Fleet", totalDevice, "text-teal-700", "bg-teal-50 border-teal-100"],
-            ["Online Nodes", onlineDevice, "text-emerald-700", "bg-emerald-50 border-emerald-100"],
-            ["Offline Nodes", offlineDevice, "text-orange-700", "bg-orange-50 border-orange-100"]
+            ["Total Kamera", totalDevice, "text-teal-700", "bg-teal-50 border-teal-100"],
+            ["Kamera Online", onlineDevice, "text-emerald-700", "bg-emerald-50 border-emerald-100"],
+            ["Kamera Offline", offlineDevice, "text-orange-700", "bg-orange-50 border-orange-100"]
           ].map(
             ([label, value, color, surface]) => (
 

@@ -3,6 +3,8 @@ import {
   useState
 } from "react";
 
+import {Link} from "react-router-dom";
+
 import MainLayout
   from "../layouts/MainLayout";
 
@@ -16,6 +18,10 @@ import {
 import {
   FaBolt,
   FaBroadcastTower,
+  FaCamera,
+  FaCloudUploadAlt,
+  FaProjectDiagram,
+  FaPlay,
   FaShieldAlt
 } from "react-icons/fa";
 
@@ -98,13 +104,12 @@ function Dashboard() {
           </span>
 
           <h1 className="page-title">
-            Wildlife Command Center
+            Dashboard Administrator
           </h1>
 
           <p className="page-description">
-            Realtime intelligence untuk perangkat ESP32-CAM,
-            pengawasan satwa, dan analisis visual Taman Nasional
-            Way Kambas.
+            Kelola aliran data kamera lapangan dan gunakan hasilnya untuk
+            pemantauan serta evaluasi observasi satwa.
           </p>
 
         </div>
@@ -199,6 +204,22 @@ function Dashboard() {
         />
 
       </div>
+
+      <section className="mt-6 grid gap-5 lg:grid-cols-2">
+        <Link to="/architecture" className="group relative overflow-hidden rounded-3xl border border-teal-200 bg-linear-to-br from-teal-700 to-cyan-700 p-7 text-white shadow-[0_20px_45px_rgba(13,148,136,0.22)] transition hover:-translate-y-1">
+          <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-white/10" />
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold"><FaCamera /> ALUR 1 · DATA KAMERA</span>
+          <h2 className="mt-5 text-2xl font-extrabold">Pengambilan Data Lapangan</h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-teal-50">Kamera → jaringan → backend → penyimpanan → evaluasi citra. Pantau setiap tahap dari satu peta sistem.</p>
+          <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold">Lihat alur sistem <FaProjectDiagram className="text-xs" /></span>
+        </Link>
+        <Link to="/upload-capture" className="group relative overflow-hidden rounded-3xl border border-amber-100 bg-linear-to-br from-white to-amber-50 p-7 shadow-[0_20px_45px_rgba(180,83,9,0.10)] transition hover:-translate-y-1">
+          <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800"><FaCloudUploadAlt /> ALUR 2 · APLIKASI WEB</span>
+          <h2 className="mt-5 text-2xl font-extrabold text-slate-900">Ruang Kerja Administrator</h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">Gunakan data dari REST API untuk memantau kamera, mengunggah observasi, melihat galeri capture, dan menilai kualitas citra.</p>
+          <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-amber-700">Unggah observasi <FaPlay className="text-xs" /></span>
+        </Link>
+      </section>
 
       <div
         className="

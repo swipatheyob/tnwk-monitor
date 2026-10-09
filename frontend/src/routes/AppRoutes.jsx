@@ -5,6 +5,7 @@ import {
 } from "react-router-dom";
 
 import Login from "../pages/Login";
+import Register from "../pages/Register";
 import Dashboard from "../pages/Dashboard";
 import DeviceList from "../pages/DeviceList";
 import DeviceForm from "../pages/DeviceForm";
@@ -15,6 +16,10 @@ import Analysis from "../pages/Analysis";
 import CameraSimulator  from "../pages/CameraSimulator";
 import UploadCapture from "../pages/UploadCapture";
 import Profile from "../pages/Profile";
+import LiveMonitoring from "../pages/LiveMonitoring";
+import AddWebcam from "../pages/AddWebcam";
+import LiveCameraView from "../pages/LiveCameraView";
+import SystemArchitecture from "../pages/SystemArchitecture";
 
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -32,6 +37,11 @@ function AppRoutes() {
           element={<Login />}
         />
 
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+
         {/* Dashboard */}
         <Route
           path="/"
@@ -40,6 +50,11 @@ function AppRoutes() {
               <Dashboard />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/architecture"
+          element={<ProtectedRoute><SystemArchitecture /></ProtectedRoute>}
         />
 
         {/* Device List */}
@@ -120,6 +135,21 @@ function AppRoutes() {
             </ProtectedRoute>
           }
          />
+
+        <Route
+          path="/monitoring"
+          element={<ProtectedRoute><LiveMonitoring /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/monitoring/add-webcam"
+          element={<ProtectedRoute><AddWebcam /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/monitoring/camera/:deviceId"
+          element={<ProtectedRoute><LiveCameraView /></ProtectedRoute>}
+        />
 
         {/* Upload Capture */}
         <Route

@@ -143,11 +143,11 @@ function Capture() {
         "
       >
         <div>
-          <span className="page-kicker">Visual Intelligence Archive</span>
-          <h1 className="page-title">Capture Gallery</h1>
+          <span className="page-kicker">Alur 1 · Penyimpanan Media</span>
+          <h1 className="page-title">Galeri Capture</h1>
           <p className="page-description">
-            Arsip media lapangan dari ESP32-CAM dan Webcam Simulator, diperbarui
-            secara otomatis setiap lima detik.
+            Arsip foto dan video dari kamera lapangan maupun unggahan administrator,
+            diperbarui otomatis setiap lima detik.
           </p>
         </div>
 
@@ -222,7 +222,7 @@ function Capture() {
             "
           >
             <FaCamera />
-            New Capture
+            Unggah Media
           </Link>
         </div>
       </div>

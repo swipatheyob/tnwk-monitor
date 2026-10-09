@@ -1,6 +1,7 @@
 import {
   FaCamera,
   FaChartBar,
+  FaProjectDiagram,
   FaHome,
   FaMapMarkerAlt,
   FaMicrochip,
@@ -25,47 +26,10 @@ import {
 
 import logo from "../assets/logo_tnwk.png";
 
-const navigation = [
-  {
-    path: "/",
-    label: "Dashboard",
-    icon: FaHome
-  },
-  {
-    path: "/devices",
-    label: "Devices",
-    icon: FaMicrochip
-  },
-  {
-    path: "/locations",
-    label: "Locations",
-    icon: FaMapMarkerAlt
-  },
-  {
-    path: "/captures",
-    label: "Captures",
-    icon: FaCamera
-  },
-  {
-    path: "/upload-capture",
-    label: "Upload",
-    icon: FaUpload
-  },
-  {
-    path: "/analysis",
-    label: "AI Analysis",
-    icon: FaChartBar
-  },
-  {
-    path: "/simulator",
-    label: "Live Vision",
-    icon: FaVideo
-  },
-  {
-    path: "/profile",
-    label: "Profile",
-    icon: MdPerson
-  }
+const navigationGroups = [
+  {label: "Ringkasan", items: [{path: "/", label: "Dashboard", icon: FaHome}, {path: "/architecture", label: "Arsitektur Sistem", icon: FaProjectDiagram}]},
+  {label: "Alur 1 · Data Kamera", items: [{path: "/devices", label: "Kamera & Node", icon: FaMicrochip}, {path: "/locations", label: "Lokasi Kamera", icon: FaMapMarkerAlt}, {path: "/monitoring", label: "Live Monitoring", icon: FaVideo}, {path: "/captures", label: "Galeri Capture", icon: FaCamera}, {path: "/analysis", label: "Evaluasi Citra", icon: FaChartBar}]},
+  {label: "Alur 2 · Administrator", items: [{path: "/upload-capture", label: "Unggah Media", icon: FaUpload}, {path: "/profile", label: "Profil Administrator", icon: MdPerson}]}
 ];
 
 function Sidebar() {
@@ -229,25 +193,9 @@ function Sidebar() {
         "
       >
 
-        <p
-          className="
-          px-3
-          pb-2
-          pt-1
-          text-[10px]
-          font-bold
-          uppercase
-          tracking-[0.2em]
-          text-slate-500
-          max-[1100px]:hidden
-          "
-        >
-          Command Modules
-        </p>
-
-        {
-          navigation.map(
-            ({
+        {navigationGroups.map(({label: groupLabel, items}) => <div key={groupLabel} className="space-y-1 pb-3">
+          <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 max-[1100px]:hidden">{groupLabel}</p>
+          {items.map(({ 
               path,
               label,
               icon: Icon
@@ -326,9 +274,8 @@ function Sidebar() {
 
               </Link>
 
-            )
-          )
-        }
+            ))}
+        </div>)}
 
       </nav>
 

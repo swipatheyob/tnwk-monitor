@@ -681,15 +681,17 @@ function Analysis() {
     }
     const interval = setInterval(analyzeVideoFrame, 100);
     return () => clearInterval(interval);
+  // analyzeVideoFrame membaca state media aktif; interval dibuat ulang saat capture berubah.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCapture]);
 
   return (
     <MainLayout>
       <div className="mb-8">
-        <span className="page-kicker">AI Image Processing Lab</span>
-        <h1 className="page-title">Histogram Equalization Analysis</h1>
+        <span className="page-kicker">Alur 1 · Evaluasi Kualitas Citra</span>
+        <h1 className="page-title">Analisis Kualitas Citra</h1>
         <p className="page-description">
-          Analisis citra menggunakan Histogram Equalization dan peningkatan
+          Evaluasi hasil pengolahan citra menggunakan Histogram Equalization dan peningkatan
           kualitas visual untuk monitoring satwa.
         </p>
       </div>

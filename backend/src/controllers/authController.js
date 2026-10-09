@@ -6,9 +6,21 @@ const generateToken = require("../config/jwt");
 // REGISTER
 const register = async (req, res) => {
   try {
-    console.log(req.body);
+    const username = String(req.body.username || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
 
-    const {username, email, password} = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        message: "Username, email, and password are required",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Password must contain at least 8 characters",
+      });
+    }
 
     const userExists = await User.findOne({email});
 
@@ -28,7 +40,13 @@ const register = async (req, res) => {
 
     res.status(201).json({
       message: "User registered",
-      user,
+      token: generateToken(user._id),
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.log(error);

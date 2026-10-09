@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useSearchParams} from "react-router-dom";
 import {Bar} from "react-chartjs-2";
 import {
   BarElement,
@@ -77,6 +77,7 @@ function getSourceSize(source) {
 }
 
 function CameraSimulator() {
+  const [searchParams] = useSearchParams();
   const videoRef = useRef(null);
   const espImageRef = useRef(null);
   const wsImageRef = useRef(null);
@@ -399,16 +400,16 @@ function CameraSimulator() {
       processRealtime();
       processHistograms();
 
-      // Jalankan siklus interval auto-upload data snapshot
-      autoCaptureIntervalRef.current = setInterval(
-        captureAndUpload,
-        AUTO_CAPTURE_INTERVAL_MS,
-      );
+      if (selectedDeviceIdRef.current) {
+        autoCaptureIntervalRef.current = setInterval(
+          captureAndUpload,
+          AUTO_CAPTURE_INTERVAL_MS,
+        );
 
-      // Picu capture instan pertama kali saat streaming dibuka
-      setTimeout(() => {
-        captureAndUpload();
-      }, 1000);
+        setTimeout(() => {
+          captureAndUpload();
+        }, 1000);
+      }
 
       setRunning(true);
     },
@@ -439,13 +440,13 @@ function CameraSimulator() {
   );
 
   const startCamera = async () => {
-    if (!selectedDeviceIdRef.current) {
-      setStatus("Pilih device sebelum memulai kamera");
-      return;
-    }
     try {
       stopCamera("Connecting to webcam...");
       activeSourceTypeRef.current = "webcam";
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Browser tidak mendukung akses webcam");
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({video: true});
       const video = videoRef.current;
@@ -457,10 +458,16 @@ function CameraSimulator() {
       await video.play();
 
       startProcessing("webcam");
-      setStatus("Webcam connected - auto capture active");
+      setStatus(
+        selectedDeviceIdRef.current
+          ? "Webcam laptop aktif - capture otomatis tersimpan"
+          : "Webcam laptop aktif untuk uji coba lokal; pilih device untuk menyimpan capture",
+      );
     } catch (error) {
       console.log(error);
-      stopCamera("Failed to access webcam");
+      stopCamera(
+        `Gagal mengakses webcam: ${error.message || "periksa izin kamera browser"}`,
+      );
     }
   };
 
@@ -548,8 +555,11 @@ function CameraSimulator() {
         const data = await getDevices();
         setDevices(data);
         if (data.length > 0 && !selectedDeviceIdRef.current) {
-          selectedDeviceIdRef.current = data[0]._id;
-          setSelectedDeviceId(data[0]._id);
+          const requestedDeviceId = searchParams.get("device");
+          const requestedDevice = data.find((device) => device._id === requestedDeviceId);
+          const deviceId = requestedDevice?._id || data[0]._id;
+          selectedDeviceIdRef.current = deviceId;
+          setSelectedDeviceId(deviceId);
         }
       } catch (error) {
         console.log(error);
@@ -557,7 +567,7 @@ function CameraSimulator() {
       }
     };
     loadDevices();
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     return () => {
@@ -572,11 +582,11 @@ function CameraSimulator() {
   return (
     <MainLayout>
       <div className="mb-8">
-        <span className="page-kicker">Realtime Vision Control</span>
-        <h1 className="page-title">Live Camera Intelligence</h1>
+        <span className="page-kicker">Alur 1 · Kontrol Kamera</span>
+        <h1 className="page-title">Kontrol dan Uji Kamera</h1>
         <p className="page-description">
-          Simulasi perangkat monitoring satwa menggunakan Webcam, WebSocket
-          Live, dan ESP32-CAM secara realtime.
+          Uji sumber kamera, lihat hasil pemrosesan langsung, dan simpan capture
+          untuk evaluasi kualitas citra.
         </p>
       </div>
 
@@ -595,7 +605,7 @@ function CameraSimulator() {
           disabled={running}
           className="w-full max-w-md border border-slate-300 rounded-xl shadow-sm px-3 py-2 mb-4 disabled:opacity-50"
         >
-          <option value="">Select Device</option>
+          <option value="">Tanpa device (uji webcam lokal)</option>
           {devices.map((device) => (
             <option key={device._id} value={device._id}>
               {device.deviceName} ({device.macAddress})
@@ -617,6 +627,12 @@ function CameraSimulator() {
           <option value="websocket">Live WebSocket CCTV (High FPS)</option>
           <option value="esp32">ESP32-CAM (Mjpeg Proxy)</option>
         </select>
+        {cameraSource === "webcam" && !selectedDeviceId && (
+          <p className="mt-2 text-sm text-slate-500">
+            Webcam laptop dapat diuji tanpa device terdaftar. Pilih device jika
+            capture perlu disimpan.
+          </p>
+        )}
 
         {cameraSource === "esp32" && (
           <div className="mt-4">
@@ -728,8 +744,7 @@ function CameraSimulator() {
             else if (cameraSource === "websocket") connectWebSocket();
             else if (cameraSource === "esp32") connectEspCamera();
           }}
-          // FIX 2: Tombol Start Camera sekarang di-enable penuh untuk seluruh source
-          disabled={running || !selectedDeviceId}
+          disabled={running || (cameraSource !== "webcam" && !selectedDeviceId)}
           className="bg-teal-600 hover:bg-teal-700 text-white font-semibold transition-all px-6 py-3 rounded-2xl shadow-md disabled:opacity-50"
         >
           Start Stream

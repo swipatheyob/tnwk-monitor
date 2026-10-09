@@ -30,6 +30,7 @@ function DeviceForm() {
   ] = useState({
     deviceName: "",
     deviceCode: "",
+    macAddress: "",
     latitude: "",
     longitude: "",
     status: "offline"
@@ -132,15 +133,15 @@ function DeviceForm() {
       >
 
         <span className="page-kicker">
-          IoT Node Configuration
+          Alur 1 · Konfigurasi Kamera
         </span>
 
         <h1 className="page-title">
 
           {
             id
-              ? "Edit Device"
-              : "Add Device"
+              ? "Ubah Kamera"
+              : "Daftarkan Kamera"
           }
 
         </h1>
@@ -149,8 +150,8 @@ function DeviceForm() {
 
           {
             id
-              ? "Perbarui informasi perangkat monitoring."
-              : "Tambahkan perangkat monitoring baru ke dalam sistem."
+              ? "Perbarui identitas, lokasi, dan konektivitas kamera lapangan."
+              : "Tambahkan kamera baru agar dapat mengirim data ke sistem."
           }
 
         </p>
@@ -193,7 +194,7 @@ function DeviceForm() {
               mb-2
               "
             >
-              Device Name
+              Nama Kamera
             </label>
 
             <input
@@ -205,7 +206,7 @@ function DeviceForm() {
               onChange={
                 handleChange
               }
-              placeholder="Device Name"
+              placeholder="Contoh: Kamera Blok A-01"
               className="
               w-full
               px-4
@@ -235,7 +236,7 @@ function DeviceForm() {
               mb-2
               "
             >
-              Device Code
+              Kode Kamera
             </label>
 
             <input
@@ -247,7 +248,7 @@ function DeviceForm() {
               onChange={
                 handleChange
               }
-              placeholder="Device Code"
+              placeholder="Contoh: TNWK-CAM-001"
               className="
               w-full
               px-4
@@ -261,6 +262,27 @@ function DeviceForm() {
               "
               required
             />
+
+          </div>
+
+          {/* CAMERA MAC ADDRESS */}
+
+          <div>
+
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              MAC Address Kamera <span className="text-slate-400">(untuk live stream)</span>
+            </label>
+
+            <input
+              type="text"
+              name="macAddress"
+              value={formData.macAddress || ""}
+              onChange={handleChange}
+              placeholder="Contoh: A4:F0:0F:74:EC:20"
+              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+
+            <p className="mt-2 text-xs text-slate-500">Isi MAC address ESP32-CAM agar kamera ini dapat tampil pada pusat pantau multi-kamera.</p>
 
           </div>
 
@@ -363,7 +385,7 @@ function DeviceForm() {
               mb-2
               "
             >
-              Device Status
+              Status Kamera
             </label>
 
             <select
@@ -421,7 +443,7 @@ function DeviceForm() {
               "
             >
 
-              Save Device
+              Simpan Kamera
 
             </button>
 
@@ -444,7 +466,7 @@ function DeviceForm() {
               "
             >
 
-              Cancel
+              Batal
 
             </button>
 

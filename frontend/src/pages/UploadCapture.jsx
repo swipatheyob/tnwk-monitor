@@ -314,17 +314,16 @@ function UploadCapture() {
       <div className="mb-8">
 
         <span className="page-kicker">
-          Secure Media Ingestion
+          Alur 2 · Unggah & Analisis Manual
         </span>
 
         <h1 className="page-title">
-          Upload Capture
+          Unggah Media Observasi
         </h1>
 
         <p className="page-description">
-          Upload gambar atau video
-          dari Webcam dan ESP32-CAM
-          langsung ke sistem.
+          Tambahkan foto atau video hasil patroli untuk disimpan sebagai
+          observasi dan dievaluasi kualitas citranya.
         </p>
 
       </div>
@@ -376,17 +375,17 @@ function UploadCapture() {
             </div>
             <div>
               <h2 className="font-bold text-slate-900">
-                Capture Upload Terminal
+                Unggah Media Observasi
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Encrypted transfer to original media storage
+                Kirim media ke penyimpanan observasi
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
             <FaShieldAlt />
-            Protected endpoint
+            Koneksi terlindungi
           </div>
 
         </div>

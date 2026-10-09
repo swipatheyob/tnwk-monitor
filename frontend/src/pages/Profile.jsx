@@ -216,12 +216,12 @@ function Profile() {
         "
       >
         <div>
-          <span className="page-kicker">Account Settings</span>
+          <span className="page-kicker">Alur 2 · Administrasi Akun</span>
 
-          <h1 className="page-title">Profile Administrator</h1>
+          <h1 className="page-title">Profil Administrator</h1>
 
           <p className="page-description">
-            Pengaturan akun administrator sistem Monitoring Satwa.
+            Kelola identitas dan keamanan akun administrator sistem monitoring.
           </p>
         </div>
       </div>

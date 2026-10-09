@@ -93,16 +93,15 @@ function DeviceLocation() {
       >
 
         <span className="page-kicker">
-          Geospatial Operations
+          Alur 1 · Sebaran Kamera
         </span>
 
         <h1 className="page-title">
-          Device Location
+          Lokasi Kamera Lapangan
         </h1>
 
         <p className="page-description">
-          Monitoring lokasi perangkat
-          ESP32-CAM pada area
+          Lihat persebaran dan status kamera yang mengirim data dari area
           Taman Nasional Way Kambas.
         </p>
 

@@ -1,7 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
-  useEffect,
   useState
 } from "react";
 
@@ -13,25 +13,15 @@ export const AuthProvider = ({
 }) => {
 
   const [user, setUser] =
-    useState(null);
+    useState(() => {
+      const storedUser = localStorage.getItem("user");
+      return storedUser ? JSON.parse(storedUser) : null;
+    });
 
   const [token, setToken] =
     useState(
       localStorage.getItem("token")
     );
-
-  useEffect(() => {
-
-    const storedUser =
-      localStorage.getItem("user");
-
-    if (storedUser) {
-      setUser(
-        JSON.parse(storedUser)
-      );
-    }
-
-  }, []);
 
   const login = (
     userData,
